@@ -262,6 +262,10 @@ First we will split our dataset based on information type
 OWCSLAP<-CSLAP[CSLAP$Info_Type == "OW",]
 BSCSLAP<-CSLAP[CSLAP$Info_Type == "BS",]
 SBCSLAP<-CSLAP[CSLAP$Info_Type == "SB",]
+
+redOWCSLAP<-redCSLAP[redCSLAP$Info_Type == "OW",]
+redBSCSLAP<-redCSLAP[redCSLAP$Info_Type == "BS",]
+redBSCSLAP<-redCSLAP[redCSLAP$Info_Type == "SB",]
 ```
 
 #### Open Water TP
@@ -1004,6 +1008,250 @@ plot(redSBmicro)
 qqPlot(resid(redSBmicro))
 ```
 
+# HABs Frequency 
+
+```{r}
+#Global Dataset
+
+#create column based on 25 ug/L BGA guideline (from NYS DEC)
+CSLAP$Bloom <- ifelse(CSLAP$ESF_FP_BGA >=25.0, "Bloom", "No Bloom")
+CSLAP$Bloom <- as.factor(CSLAP$Bloom)
+
+#Separate based on invasion status and drop unused levels of Lake Name
+I.CSLAP<-CSLAP[CSLAP$Dreissenids == "Invaded",]
+I.CSLAP$Lake_Name<-droplevels(I.CSLAP$Lake_Name)
+
+U.CSLAP<-CSLAP[CSLAP$Dreissenids == "Uninvaded",]
+U.CSLAP$Lake_Name<-droplevels(U.CSLAP$Lake_Name)
+
+#Reduced Dataset
+
+#create column based on 25 ug/L BGA guideline (from NYS DEC)
+redCSLAP$Bloom <- ifelse(redCSLAP$ESF_FP_BGA >=25.0, "Bloom", "No Bloom")
+redCSLAP$Bloom <- as.factor(redCSLAP$Bloom)
+
+#Separate based on invasion status and drop unused levels of Lake Name
+I.redCSLAP<-redCSLAP[redCSLAP$Dreissenids == "Invaded",]
+I.redCSLAP$Lake_Name<-droplevels(I.redCSLAP$Lake_Name)
+
+U.redCSLAP<-redCSLAP[redCSLAP$Dreissenids == "Uninvaded",]
+U.redCSLAP$Lake_Name<-droplevels(U.redCSLAP$Lake_Name)
+```
+
+## Global Dataset: All Blooms
+```{r}
+table(CSLAP[, c("Bloom", "Dreissenids")])
+
+HABFreqYear<-as.data.frame(table(CSLAP[,c("Bloom","Dreissenids","Sample_Year")]))
+
+HABFreqLake<-as.data.frame(table(CSLAP[,c("Bloom","Dreissenids","Lake_Name")]))
+
+#separate by invaded and uninvaded
+I.blooms<-as.data.frame(table(I.CSLAP[,c("Lake_Name","Bloom")]))
+I.blooms$Dreissenids<-rep("Invaded", 16)
+
+U.blooms<-as.data.frame(table(U.CSLAP[,c("Lake_Name","Bloom")]))
+U.blooms$Dreissenids<-rep("Uninvaded", 124)
+
+#Make into one dataframe for analysis
+blooms<-rbind(I.blooms, U.blooms)
+
+#Remove 'no blooms' 
+blooms<-blooms[blooms$Bloom == "Bloom",]
+```
+
+### AOV
+```{r}
+fit<-aov(Freq ~ Dreissenids, data=blooms)
+summary(fit)
+TukeyHSD(fit)
+```
+
+### GLMER poisson 
+
+```{r}
+hist(blooms$Freq)
+
+model<-glmer(Freq ~ Dreissenids + (1|Lake_Name), family=poisson(link=log), data=blooms)
+summary(model)
+```
+
+```{r}
+res<-simulateResiduals(model)
+plot(res)
+
+testResiduals(res)
+
+testZeroInflation(res)
+```
+## Reduced Dataset: All Blooms
+
+```{r}
+redHABFreqYear<-as.data.frame(table(redCSLAP[,c("Bloom","Dreissenids","Sample_Year")]))
+
+##Data organization for analysis 
+
+#separate by invaded and uninvaded
+I.redblooms<-as.data.frame(table(I.redCSLAP[,c("Lake_Name","Bloom")]))
+I.redblooms$Dreissenids<-rep("Invaded", 16)
+
+U.redblooms<-as.data.frame(table(U.redCSLAP[,c("Lake_Name","Bloom")]))
+U.redblooms$Dreissenids<-rep("Uninvaded", 20)
+
+#Make into one dataframe for analysis
+redblooms<-rbind(I.redblooms, U.redblooms)
+
+#Remove 'no blooms' 
+redblooms<-redblooms[redblooms$Bloom == "Bloom",]
+```
+
+### AOV
+```{r}
+redfit<-aov(Freq ~ Dreissenids, data=redblooms)
+summary(redfit)
+TukeyHSD(redfit)
+```
+
+### GLMER poisson 
+
+```{r}
+hist(redblooms$Freq)
+
+redmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name), family=poisson(link=log), data=redblooms)
+summary(redmodel)
+```
+
+```{r}
+redres<-simulateResiduals(redmodel)
+plot(redres)
+
+testResiduals(redres)
+
+testZeroInflation(redres)
+```
+
+## Global Dataset: HT Blooms
+
+```{r}
+HTBloom<-CSLAP[which(CSLAP$Bloom == "Bloom"), ]
+
+#create df of only OW blooms, then use 10 ug/L microcystin to get HT blooms (DEC open water guideline)
+OWHTBloom<-HTBloom[HTBloom$Info_Type == "OW",]
+OWHTBloom$HTBloom <- ifelse(OWHTBloom$ESF_Microcystin >= 10.0, "HT Bloom", "No HT Bloom")
+
+#create df of only SB blooms, then use 20 ug/L microcystin to get HT blooms (DEC shoreline guideline)
+SBHTBloom<-HTBloom[HTBloom$Info_Type == "SB",]
+SBHTBloom$HTBloom <- ifelse(SBHTBloom$ESF_Microcystin >= 20.0, "HT Bloom", "No HT Bloom")
+
+#Separate based on invasion status and drop unused levels of Lake Name
+I.SBHTBloom<-SBHTBloom[SBHTBloom$Dreissenids == "Invaded",]
+I.SBHTBloom$Lake_Name<-droplevels(I.SBHTBloom$Lake_Name)
+
+U.SBHTBloom<-SBHTBloom[SBHTBloom$Dreissenids == "Uninvaded",]
+U.SBHTBloom$Lake_Name<-droplevels(U.SBHTBloom$Lake_Name)
+```
+
+```{r}
+#separate by invaded and uninvaded
+I.HTblooms<-as.data.frame(table(I.SBHTBloom[,c("Lake_Name","HTBloom")]))
+I.HTblooms$Dreissenids<-rep("Invaded", 8)
+
+U.HTblooms<-as.data.frame(table(U.SBHTBloom[,c("Lake_Name","HTBloom")]))
+U.HTblooms$Dreissenids<-rep("Uninvaded", 56)
+
+#Make into one dataframe for analysis
+HTblooms<-rbind(I.HTblooms, U.HTblooms)
+
+#Remove 'no blooms' 
+HTblooms<-HTblooms[HTblooms$HTBloom == "HT Bloom",]
+```
+
+### AOV
+```{r}
+HTfit<-aov(Freq ~ Dreissenids, data=HTblooms)
+summary(HTfit)
+TukeyHSD(HTfit)
+```
+
+### GLMER poisson 
+
+```{r}
+hist(HTblooms$Freq)
+
+HTmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name), family=poisson(link=log), data=HTblooms)
+summary(HTmodel)
+```
+
+```{r}
+HTres<-simulateResiduals(HTmodel)
+plot(HTres)
+
+testResiduals(HTres)
+
+testZeroInflation(HTres)
+```
+
+## Reduced Dataset: HT Blooms
+
+```{r}
+redHTBloom<-redCSLAP[which(redCSLAP$Bloom == "Bloom"), ]
+
+#create df of only OW blooms, then use 10 ug/L microcystin to get HT blooms (DEC open water guideline)
+redOWHTBloom<-redHTBloom[redHTBloom$Info_Type == "OW",]
+redOWHTBloom$HTBloom <- ifelse(redOWHTBloom$ESF_Microcystin >= 10.0, "HT Bloom", "No HT Bloom")
+
+#create df of only SB blooms, then use 20 ug/L microcystin to get HT blooms (DEC shoreline guideline)
+redSBHTBloom<-redHTBloom[redHTBloom$Info_Type == "SB",]
+redSBHTBloom$HTBloom <- ifelse(redSBHTBloom$ESF_Microcystin >= 20.0, "HT Bloom", "No HT Bloom")
+
+#Separate based on invasion status and drop unused levels of Lake Name
+redI.SBHTBloom<-redSBHTBloom[redSBHTBloom$Dreissenids == "Invaded",]
+redI.SBHTBloom$Lake_Name<-droplevels(redI.SBHTBloom$Lake_Name)
+
+redU.SBHTBloom<-redSBHTBloom[redSBHTBloom$Dreissenids == "Uninvaded",]
+redU.SBHTBloom$Lake_Name<-droplevels(redU.SBHTBloom$Lake_Name)
+```
+
+```{r}
+#separate by invaded and uninvaded
+redI.HTblooms<-as.data.frame(table(redI.SBHTBloom[,c("Lake_Name","HTBloom")]))
+redI.HTblooms$Dreissenids<-rep("Invaded", 8)
+
+redU.HTblooms<-as.data.frame(table(redU.SBHTBloom[,c("Lake_Name","HTBloom")]))
+redU.HTblooms$Dreissenids<-rep("Uninvaded", 6)
+
+#Make into one dataframe for analysis
+redHTblooms<-rbind(redI.HTblooms, redU.HTblooms)
+
+#Remove 'no blooms' 
+redHTblooms<-redHTblooms[redHTblooms$HTBloom == "HT Bloom",]
+```
+
+### AOV
+```{r}
+redHTfit<-aov(Freq ~ Dreissenids, data=redHTblooms)
+summary(redHTfit)
+TukeyHSD(redHTfit)
+```
+
+### GLMER poisson 
+
+```{r}
+hist(redHTblooms$Freq)
+
+redHTmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name), family=poisson(link=log), data=redHTblooms)
+summary(redHTmodel)
+```
+
+```{r}
+redHTres<-simulateResiduals(redHTmodel)
+plot(redHTres)
+
+testResiduals(redHTres)
+
+testZeroInflation(redHTres)
+```
+
 # Linear Regressions
 
 ## Global Dataset
@@ -1013,25 +1261,44 @@ library(plyr)
 avgTP<-ddply(OWCSLAP, c("LakeID", "Sample_Year"), summarize, 
              Mean = mean(TP, na.rm=TRUE))
 
+#Extracting average annual TN:TP for each lake 
+avgTNTP<-ddply(OWCSLAP, c("LakeID", "Sample_Year"), summarize, 
+             Mean = mean(TN_TP, na.rm=TRUE))
+
 #Taking only rows where there is a value for Microcystin 
 Bloom<-CSLAP[!is.na(CSLAP$ESF_Microcystin),]
 
 #Which rows are missing TP values? 
 noTPbloom<-Bloom[is.na(Bloom$TP),]
 
+#Which rows are missing TN:TP values? 
+noTNTPbloom<-Bloom[is.na(Bloom$TN_TP),]
+
 #merge average TP to noTPbloom data frame 
 avgTPbloom<-merge(noTPbloom, avgTP, by=c("LakeID", "Sample_Year"), all.x=TRUE, all.y=FALSE)
 
+#merge average TN:TP to noTNTPbloom data frame 
+avgTNTPbloom<-merge(noTNTPbloom, avgTNTP, by=c("LakeID", "Sample_Year"), all.x=TRUE, all.y=FALSE)
+
 #remove original TP column, and re-name the average TP column 
-avgTPbloom<-avgTPbloom[, c(1:16, 18:55)]
+avgTPbloom<-avgTPbloom[, c(1:16,18:56)]
 colnames(avgTPbloom)[colnames(avgTPbloom)=="Mean"] <- "TP"
 
+#remove original TN:TP column, and re-name the average TN:TP column 
+avgTNTPbloom<-avgTNTPbloom[, c(1:49, 51:56)]
+colnames(avgTNTPbloom)[colnames(avgTNTPbloom)=="Mean"] <- "TN_TP"
+
 #re-order columns 
-avgTPbloom<-avgTPbloom[, c(1:16,54,17:53)]
+avgTPbloom<-avgTPbloom[, c(1:16,55,17:54)]
+
+#re-order columns 
+avgTNTPbloom<-avgTNTPbloom[, c(1:49,55,50:54)]
 
 #combine two data frames
 hadTP<-Bloom[!is.na(Bloom$TP),]
+hadTNTP<-Bloom[!is.na(Bloom$TN_TP),]
 completeBloom<-rbind(hadTP, avgTPbloom)
+completeBloom<-rbind(completeBloom, hadTNTP)
 
 #split by invasion status 
 invadedBlooms<-completeBloom[completeBloom$Dreissenids == "Invaded",]
@@ -1064,6 +1331,34 @@ ggplot(completeBloom, aes(x=TP, y=ESF_Microcystin, color=Dreissenids, shape=Drei
   
 
 ggsave("./output_figures/Fig 2-1 Global.png")
+```
+
+### TN:TP and Microcystin
+
+```{r}
+#create linear models 
+TNTP_invaded.lm<-lm(log(invadedBlooms$ESF_Microcystin+.1)~log(invadedBlooms$TN_TP+.1))
+TNTP_uninvaded.lm<-lm(log(uninvadedBlooms$ESF_Microcystin+.1)~log(uninvadedBlooms$TN_TP+.1))
+
+summary(TNTP_invaded.lm)
+summary(TNTP_uninvaded.lm)
+
+TNTP_invaded.lm.sum<-summary(TNTP_invaded.lm)
+TNTP_uninvaded.lm.sum<-summary(TNTP_uninvaded.lm)
+```
+
+```{r}
+ggplot(completeBloom, aes(x=TN_TP, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
+  geom_point(cex=2) + 
+  geom_smooth(data=subset(completeBloom, Dreissenids == "Invaded" ),
+               aes(x=TN_TP, y=ESF_Microcystin, color=Dreissenids), method=lm, se=FALSE)+
+  theme_classic()+ 
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10', breaks=c(1,100, 10000)) +
+  scale_color_grey()
+  
+
+ggsave("./output_figures/Fig 2-3 Global.png")
 ```
 
 ### Chlorophyll-a and Microcystin 
@@ -1099,28 +1394,44 @@ ggsave("./output_figures/Fig 2-2 Global.png")
 library(plyr)
 redavgTP<-ddply(redOWCSLAP, c("LakeID", "Sample_Year"), summarize, 
              Mean = mean(TP, na.rm=TRUE))
-```
 
-```{r}
+#Extracting average annual TNTP for each lake 
+redavgTNTP<-ddply(redOWCSLAP, c("LakeID", "Sample_Year"), summarize, 
+             Mean = mean(TN_TP, na.rm=TRUE))
+
 #Taking only rows where there is a value for microcystin
 redBloom<-redCSLAP[!is.na(redCSLAP$ESF_Microcystin),]
 
 #Which rows are missing TP values? 
 rednoTPbloom<-redBloom[is.na(redBloom$TP),]
 
+#Which rows are missing TNTP values? 
+rednoTNTPbloom<-redBloom[is.na(redBloom$TN_TP),]
+
 #merge average TP to noTPbloom data frame 
 redavgTPbloom<-merge(rednoTPbloom, redavgTP, by=c("LakeID", "Sample_Year"), all.x=TRUE, all.y=FALSE)
 
+#merge average TN:TP to noTPbloom data frame 
+redavgTNTPbloom<-merge(rednoTNTPbloom, redavgTNTP, by=c("LakeID", "Sample_Year"), all.x=TRUE, all.y=FALSE)
+
 #remove original TP column, and re-name the average TP column 
-redavgTPbloom<-redavgTPbloom[, c(1:16, 18:55)]
+redavgTPbloom<-redavgTPbloom[, c(1:16, 18:56)]
 colnames(redavgTPbloom)[colnames(redavgTPbloom)=="Mean"] <- "TP"
 
+#remove original TNTP column, and re-name the average TNTP column 
+redavgTNTPbloom<-redavgTNTPbloom[, c(1:49, 51:56)]
+colnames(redavgTNTPbloom)[colnames(redavgTNTPbloom)=="Mean"] <- "TN_TP"
+
 #re-order columns 
-redavgTPbloom<-redavgTPbloom[, c(1:16,54,17:53)]
+redavgTPbloom<-redavgTPbloom[, c(1:16,55,17:54)]
+
+#re-order columns 
+redavgTNTPbloom<-redavgTNTPbloom[, c(1:49,55,50:54)]
 
 #combine two data frames
 redhadTP<-redBloom[!is.na(redBloom$TP),]
 redcompleteBloom<-rbind(redhadTP, redavgTPbloom)
+redcompleteBloom<-rbind(redcompleteBloom, redavgTNTPbloom)
 
 #split by invasion status 
 redinvadedBlooms<-redcompleteBloom[redcompleteBloom$Dreissenids == "Invaded",]
@@ -1153,6 +1464,34 @@ ggplot(redcompleteBloom, aes(x=TP, y=ESF_Microcystin, color=Dreissenids, shape=D
   
 
 ggsave("./output_data/Fig 2-1 Reduced.png")
+```
+
+### TN:TP and Microcystin
+
+```{r}
+#create linear models 
+redTNTP_invaded.lm<-lm(log(redinvadedBlooms$ESF_Microcystin+.1)~log(redinvadedBlooms$TN_TP+.1))
+redTNTP_uninvaded.lm<-lm(log(reduninvadedBlooms$ESF_Microcystin+.1)~log(reduninvadedBlooms$TN_TP+.1))
+
+summary(redTNTP_invaded.lm)
+summary(redTNTP_uninvaded.lm)
+
+redTNTP_invaded.lm.sum<-summary(redTNTP_invaded.lm)
+redTNTP_uninvaded.lm.sum<-summary(redTNTP_uninvaded.lm)
+```
+
+```{r}
+ggplot(redcompleteBloom, aes(x=TN_TP, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
+  geom_point(cex=2) + 
+  geom_smooth(data=subset(redcompleteBloom, Dreissenids == "Invaded" ),
+               aes(x=TN_TP, y=ESF_Microcystin, color=Dreissenids), method=lm, se=FALSE)+
+  theme_classic()+ 
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10', breaks=c(1,100, 10000)) +
+  scale_color_grey()
+  
+
+ggsave("./output_figures/Fig 2-3 Reduced.png")
 ```
 
 ### Chlorophyll and Microcystin 
