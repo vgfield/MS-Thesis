@@ -1,0 +1,203 @@
+---
+title: "Historical CSLAP - Apr 29 2020"
+author: "Victoria_Field"
+date: "4/29/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(lme4)
+```
+
+#Data Read In 
+```{r}
+#historicalCSLAP df edited to match DeRuyter and EatonBrook dfs
+hisCSLAP<-read.csv("Historical_CSLAP_edited.csv", na.strings=c("", " ", "ND", "NA", "no filter", "nofilter"))
+
+#DeRuyter and EatonBrook dfs
+Eaton<-read.csv("EatonHistoricalClean2.csv", na.strings=c("", " ", "ND", "NA", "no filter", "nofilter"))
+Der<-read.csv("DeruyterHistoricalClean2.csv", na.strings=c("", " ", "ND", "NA", "no filter", "nofilter"))
+
+#change levels of Info_Type 
+hisCSLAP$Info_Type[hisCSLAP$Info_Type == "ow"]<-"OW"
+hisCSLAP$Info_Type[hisCSLAP$Info_Type == "sb"]<-"SB"
+hisCSLAP$Info_Type<-droplevels(hisCSLAP$Info_Type)
+```
+
+#Merge hisCSLAP with Deruyter and Eatonbrook 
+```{r}
+#remove any observations from Eaton or DeRuyter from hisCSLAP 
+hisCSLAP<-hisCSLAP[hisCSLAP$Lake_Name != "De Ruyter Reservoir",]
+hisCSLAP<-hisCSLAP[hisCSLAP$Lake_Name != "Eaton Brook Reservoir",]
+
+#row bind cleaned DeRuyter and EatonBrook 
+hisCSLAP<-rbind(hisCSLAP, Eaton)
+hisCSLAP<-rbind(hisCSLAP, Der)
+```
+
+#Further organize hisCSLAP, and merge physical characteristics and invasion status 
+```{r}
+#extract sample year and month 
+hisCSLAP$Sample_Year<-as.numeric(format(as.Date(hisCSLAP$Sample_Date, format="%m/%d/%Y"),"%Y"))
+hisCSLAP$Sample_Month<-as.numeric(format(as.Date(hisCSLAP$Sample_Date, format="%m/%d/%Y"),"%m"))
+
+#read in CA:SA, Mean_Depths, and Year of Invasion
+CA_SA<-read.csv("Catchment_SA.csv", header=TRUE, colClasses=c("character", "numeric"))
+CA_SA[13,1]<- "De Ruyter Reservoir"
+
+Mean_Depth<-read.csv("MeanDepths.csv", header=TRUE, colClasses=c("character", "numeric"))
+
+Invasion_Year<-read.csv("InvasionYear.csv", header=TRUE, colClasses=c("factor", "numeric"))
+
+#merge with hisCSLAP
+hisCSLAP<-merge(hisCSLAP, CA_SA, all.x=TRUE)
+hisCSLAP<-merge(hisCSLAP, Mean_Depth, all.x=TRUE)
+hisCSLAP<-merge(hisCSLAP, Invasion_Year, all.x=TRUE)
+
+#create new column `Years_Invaded` by subtracting `Invasion Year` from `Sample Year`
+hisCSLAP$Years_Invaded<-hisCSLAP$Sample_Year-hisCSLAP$Invasion_Year
+
+#turn `Sample_Year`, `Sample_Month`, and `Invasion_Year` back to factors
+hisCSLAP$Sample_Year<-as.factor(hisCSLAP$Sample_Year)
+hisCSLAP$Sample_Month<-as.factor(hisCSLAP$Sample_Month)
+hisCSLAP$Invasion_Year<-as.factor(hisCSLAP$Invasion_Year)
+
+#create column with 'Invaded' or "Uninvaded" based on `Years Invaded`
+hisCSLAP$Dreissenids<-ifelse(hisCSLAP$Years_Invaded >= 0, "Invaded", "Uninvaded")
+hisCSLAP$Dreissenids<-as.factor(hisCSLAP$Dreissenids)
+
+#we will also remove and shoreline bloom samples 
+hisCSLAP<-hisCSLAP[hisCSLAP$Info_Type != "SB",]
+hisCSLAP$Info_Type<-droplevels(hisCSLAP$Info_Type)
+
+#finally, create a df with only OW samples and a df with only BS samples 
+OWhisCSLAP<-hisCSLAP[hisCSLAP$Info_Type == "OW",]
+BShisCSLAP<-hisCSLAP[hisCSLAP$Info_Type == "BS",]
+```
+
+#Aggregating yearly means by lake and years invaded
+```{r}
+Chl<-aggregate(Extracted_Chl_ug.L ~ Lake_Name + Years_Invaded, data=hisCSLAP[hisCSLAP$Info_Type == "OW",], FUN=mean)
+
+OWTP<-aggregate(TP_mg.L ~ Lake_Name + Lake_Name + Years_Invaded, data=hisCSLAP[hisCSLAP$Info_Type == "OW",], FUN=mean)
+
+BSTP<-aggregate(TP_mg.L ~ Lake_Name + Lake_Name + Years_Invaded, data=hisCSLAP[hisCSLAP$Info_Type == "BS",], FUN=mean)
+
+OWTN<-aggregate(TN_mg.L ~ Lake_Name + Lake_Name + Years_Invaded, data=hisCSLAP[hisCSLAP$Info_Type == "OW",], FUN=mean)
+
+TC<-aggregate(True_Color_PTU ~ Lake_Name + Years_Invaded, data=hisCSLAP[hisCSLAP$Info_Type == "OW",], FUN=mean)
+
+Calc<-aggregate(Calcium_mg.L ~ Lake_Name + Years_Invaded, data=hisCSLAP[hisCSLAP$Info_Type == "OW",], FUN=mean)
+```
+
+#How do lakes change after invasion? (t-test for pre and post invasion, then MEMs)
+
+##Extracted Chlorophyll-a
+```{r}
+hist(log(OWhisCSLAP$Extracted_Chl_ug.L))
+
+t.test(Extracted_Chl_ug.L ~ Dreissenids, data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
+
+Chl.lmer<-lmer(log(Extracted_Chl_ug.L) ~ Dreissenids + (1|LakeID), data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
+
+summary(Chl.lmer)
+
+plot(Chl.lmer)
+```
+
+##Open Water TP
+```{r}
+hist(log(OWhisCSLAP$TP_mg.L))
+
+t.test(TP_mg.L ~ Dreissenids, data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
+
+OWTP.lmer<-lmer(log(TP_mg.L) ~ Dreissenids  + (1|LakeID), data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
+
+summary(OWTP.lmer)
+
+plot(OWTP.lmer)
+```
+
+##Bottom Sample TP
+```{r}
+hist(log(BShisCSLAP$TP_mg.L))
+
+t.test(TP_mg.L ~ Dreissenids, data=hisCSLAP[hisCSLAP$Info_Type == "BS",])
+
+BSTP.lmer<-lmer(log(TP_mg.L) ~ Dreissenids + (1|LakeID), data=hisCSLAP[hisCSLAP$Info_Type == "BS",])
+
+summary(BSTP.lmer)
+
+plot(BSTP.lmer)
+```
+
+##Open Water TN
+```{r}
+hist(log(OWhisCSLAP$TN_mg.L))
+
+t.test(TN_mg.L ~ Dreissenids, data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
+
+OWTN.lmer<-lmer(log(TN_mg.L) ~ Dreissenids + (1|LakeID), data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
+
+summary(OWTN.lmer)
+```
+
+##Open Water True Color
+```{r}
+t.test(True_Color_PTU ~ Dreissenids, data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
+
+TC.lmer<-lmer(True_Color_PTU ~ Dreissenids + (1|LakeID), data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
+
+summary(TC.lmer)
+```
+
+##Calcium
+```{r}
+t.test(Calcium_mg.L ~ Dreissenids, data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
+
+Calc.lmer<-lmer(Calcium_mg.L ~ Dreissenids + (1|LakeID), data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
+
+summary(Calc.lmer)
+```
+
+#Boxplots
+##Chlorophyll-a
+```{r}
+ggplot(hisCSLAP[hisCSLAP$Info_Type == "OW",], aes(x=Dreissenids, y=Extracted_Chl_ug.L)) + 
+  geom_boxplot()+
+  theme_bw()+
+  labs(y = "Extracted Chlorophyll-a (mg/L)")
+
+ggsave("historical_Chl.png")
+```
+
+##OWTP
+```{r}
+ggplot(hisCSLAP[hisCSLAP$Info_Type == "OW",], aes(x=Dreissenids, y=TP_mg.L)) + 
+  geom_boxplot()+
+  theme_bw()+
+  labs(y = "Open Water TP (mg/L)")
+
+ggsave("historical_OWTP.png")
+```
+
+##BSTP
+```{r}
+ggplot(hisCSLAP[hisCSLAP$Info_Type == "BS",], aes(x=Dreissenids, y=TP_mg.L)) + 
+  geom_boxplot()+
+  theme_bw()+
+  labs(y = "Bottom Sample TP (mg/L)")
+
+ggsave("historical_BSTP.png")
+```
+
+##OWTN
+```{r}
+ggplot(hisCSLAP[hisCSLAP$Info_Type == "OW",], aes(x=Dreissenids, y=TN_mg.L)) + 
+  geom_boxplot()+
+  theme_bw()+
+  labs(y = "Open Water TN (mg/L)")
+
+ggsave("historical_OWTN.png")
+```

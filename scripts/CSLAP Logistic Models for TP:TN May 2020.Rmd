@@ -1,0 +1,136 @@
+---
+title: "CSLAP Logistic Models for TP/TN May 2020"
+author: "Victoria Field"
+date: "5/15/2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(lme4)
+library(ggplot2)
+require(lmerTest)
+library(lattice)
+library(predictmeans)
+library(dplyr)
+library(tidyr)
+library(DHARMa)
+library(magrittr)
+library(pryr)
+library(MASS)
+```
+
+#Data Read In 
+```{r}
+CSLAP<-read.csv("CSLAP_Dataset_09232019.csv", header=TRUE)
+CSLAP$Sample_Year<-as.factor(CSLAP$Sample_Year)
+CSLAP$Sample_Month<-as.factor(CSLAP$Sample_Month)
+
+#Split by `Info_Type`
+OWCSLAP<-CSLAP[CSLAP$Info_Type == "OW",]
+BSCSLAP<-CSLAP[CSLAP$Info_Type == "BS",]
+
+redCSLAP<-read.csv("redCSLAP.csv")
+
+redOWCSLAP<-redCSLAP[redCSLAP$Info_Type == "OW",]
+```
+
+#Open Water TP
+
+##Make simple df for OWTP model 
+```{r}
+#Select out data of interest
+df <- OWCSLAP %>% dplyr::select(TP_mg.L, Dreissenids, CA.SA, Mean_Depth_m, Sample_Year, Sample_Month, LakeID)
+df <- df[complete.cases(df), ]
+df$TP_ug.L <- df$TP_mg.L*1000 #change milligrams to micrograms
+
+df$TP <- ifelse(df$TP_ug.L >= 10.00, "1", "0")
+df$TP <- as.factor(df$TP)
+```
+
+##Fit the Model
+```{r}
+OWTP <- glm(TP ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data = df, family = "binomial")
+
+summary(OWTP)
+
+simOWTP  <-  simulateResiduals(OWTP)
+plotSimulatedResiduals(simOWTP) 
+```
+
+#Bottom Sample TP
+
+##Make simple df for BSTP model 
+```{r}
+#Select out data of interest
+df2 <- BSCSLAP %>% dplyr::select(TP_mg.L, Dreissenids, CA.SA, Mean_Depth_m, Sample_Year, Sample_Month, LakeID)
+df2 <- df2[complete.cases(df2), ]
+df2$TP_ug.L <- df2$TP_mg.L*1000 #change milligrams to micrograms
+
+df2$TP <- ifelse(df2$TP_ug.L >= 10.00, "1", "0")
+df2$TP <- as.factor(df2$TP)
+```
+
+##Fit the Model
+```{r}
+BSTP <- glm(TP ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data = df2, family = "binomial")
+
+summary(BSTP)
+
+simBSTP  <-  simulateResiduals(BSTP)
+plotSimulatedResiduals(simBSTP) 
+```
+
+#Regression Tree to Determine TN value threshold for differences in chlorophyll-a between invaded and uninvaded lakes 
+(https://uc-r.github.io/regression_trees)
+```{r}
+library(rsample)     # data splitting 
+library(dplyr)       # data wrangling
+library(rpart)       # performing regression trees
+library(rpart.plot)  # plotting regression trees
+```
+
+```{r}
+test <- CSLAP %>% dplyr::select(TN_mg.L, Dreissenids, Extracted_Chl.a_ug.L, LakeID)
+```
+
+```{r}
+m1 <- rpart(
+  formula = Extracted_Chl.a_ug.L ~ TN_mg.L + Dreissenids,
+  data    = test,
+  method  = "anova", 
+  control = list(minsplit = 5)
+  )
+
+m1
+
+rpart.plot(m1)
+```
+
+#Open Water TN 
+
+##Make simple df for OWTN model 
+```{r}
+#Select out data of interest
+df3 <- OWCSLAP %>% dplyr::select(TN_mg.L, Dreissenids, CA.SA, Mean_Depth_m, Sample_Year, Sample_Month, LakeID)
+df3 <- df3[complete.cases(df3), ]
+
+df3$TN <- ifelse(df3$TN_mg.L >= .3687, "1", "0")
+df3$TN <- as.factor(df3$TN)
+```
+
+##Fit the Model
+```{r}
+OWTN <- glm(TN ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data = df3, family = "binomial")
+
+summary(OWTN)
+
+simOWTN  <-  simulateResiduals(OWTN)
+plotSimulatedResiduals(simOWTN) 
+```
+
+

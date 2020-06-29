@@ -1,0 +1,281 @@
+---
+title: "CSLAP MEMs (mixed) - June 2020"
+author: "Victoria Field"
+date: "6/8/2020"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(lme4)
+library(ggplot2)
+require(lmerTest)
+library(lattice)
+library(predictmeans)
+library(dplyr)
+library(tidyr)
+library(DHARMa)
+library(magrittr)
+library(pryr)
+library(MASS)
+```
+
+#Data Read In 
+```{r}
+CSLAP<-read.csv("CSLAP_Dataset_09232019.csv", header=TRUE, stringsAsFactors = F)
+CSLAP$Sample_Year<-as.factor(CSLAP$Sample_Year)
+CSLAP$Sample_Month<-as.factor(CSLAP$Sample_Month)
+
+#Create TN:TP column 
+CSLAP$TN_TP<-(CSLAP$TN_mg.L+.01)/(CSLAP$TP_mg.L+.01)
+
+#Read in and merge %ag 
+Ag<-read.csv("Percent Ag Cover.csv", na.strings=c("", " "))
+CSLAP<-merge(CSLAP, Ag, by="Lake_Name", all.x=TRUE)
+
+#Split by `Info_Type`
+OWCSLAP<-CSLAP[CSLAP$Info_Type == "OW",]
+BSCSLAP<-CSLAP[CSLAP$Info_Type == "BS",]
+SBCSLAP<-CSLAP[CSLAP$Info_Type == "SB",]
+noSBCSLAP<-CSLAP[CSLAP$Info_Type != "SB",]
+
+redCSLAP<-read.csv("redCSLAP.csv")
+names(redCSLAP)[names(redCSLAP) == "Lake_Name.x"] <- "Lake_Name"
+names(redCSLAP)[names(redCSLAP) == "Dreissenids.x"] <- "Dreissenids"
+redCSLAP$Sample_Year<-as.factor(redCSLAP$Sample_Year)
+redCSLAP$Sample_Month<-as.factor(redCSLAP$Sample_Month)
+
+#Create TN:TP column 
+redCSLAP$TN_TP<-(redCSLAP$TN_mg.L+.01)/(redCSLAP$TP_mg.L+.01)
+
+#Merge %ag
+redCSLAP<-merge(redCSLAP, Ag, by="Lake_Name", all.x=TRUE)
+
+#Split by `Info_Type`
+redOWCSLAP<-redCSLAP[redCSLAP$Info_Type == "OW",]
+redBSCSLAP<-redCSLAP[redCSLAP$Info_Type == "BS",]
+redSBCSLAP<-redCSLAP[redCSLAP$Info_Type == "SB",]
+rednoSBCSLAP<-redCSLAP[redCSLAP$Info_Type != "SB",]
+```
+
+#Global Dataset 
+
+##Open Water TN:TP - `lmer()`
+
+```{r}
+TNTP<-lmer(log(TN_TP+.01) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag +  (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=OWCSLAP)
+
+summary(TNTP)
+
+plot(TNTP)
+
+qqPlot(resid(TNTP))
+```
+
+##Open Water TN:TP - `glmer()`
+
+```{r}
+TNTP2<-glmer(TN_TP ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag +  (1|LakeID) + (1|Sample_Year:LakeID), data=OWCSLAP, family=Gamma(link="log"))
+
+summary(TNTP2)
+
+plot(TNTP2)
+
+qqPlot(resid(TNTP2))
+
+simTNTP  <-  simulateResiduals(TNTP)
+plotSimulatedResiduals(simTNTP) 
+```
+
+##Open Water Chlorophyll-a
+
+-`Sample_Year` and `Sample_Month` removed for having low variance
+```{r}
+Chl<-lmer(log(Extracted_Chl.a_ug.L+1) ~ Dreissenids + log(CA.SA) + Mean_Depth_m + Percent_Ag  + (1|LakeID) + (1|Sample_Year:LakeID), data=OWCSLAP)
+
+summary(Chl)
+
+plot(Chl)
+
+qqPlot(resid(Chl))
+```
+
+##Open Water Secchi Depth
+
+-`Sample_Year` and `Sample_Month` removed for having low variance
+```{r}
+Secchi <- lmer(log(Secchi_Depth_m) ~ Dreissenids + log(CA.SA) + Mean_Depth_m + Percent_Ag + (1|LakeID) + (1|Sample_Year:LakeID), data=OWCSLAP)
+
+summary(Secchi)
+
+plot(Secchi)
+
+qqPlot(resid(Secchi))
+```
+
+##Open Water True Color 
+
+-Gamma model with no random effects comes out great, Gamma model with random effects much worse 
+
+-Tried log-transforming True Color, but that made residuals and qqPlot worse
+
+-`Sample_Year` and `Sample_Month` removed for having low variance
+```{r}
+OWTC<-lmer(True_Color_PTU ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|LakeID) + (1|Sample_Year:LakeID), data=OWCSLAP)
+
+summary(OWTC)
+
+plot(OWTC)
+
+qqPlot(resid(OWTC))
+```
+
+##Shoreline Bloom Chlorophyll a 
+-**update 03/08** `boundary (singular) fit` Removed random effect of Sample_Year with ~0.00 variance to resolve warning.
+
+```{r}
+SBChl<-lmer(log(ESF_Chl.a_ug.L) ~ Dreissenids + log(CA.SA) + Mean_Depth_m + Percent_Ag + (1|Sample_Month) + (1|LakeID) , data=SBCSLAP)
+
+summary(SBChl)
+
+plot(SBChl)
+
+qqPlot(resid(SBChl))
+```
+
+
+##Shoreline Bloom Microcystin
+ -**update 03/08** `boundary (singular) fit` Removed random effect of Sample_Month with 0.00 variance to resolve warning.
+ 
+ -**update 06/05** adding continuous variable of TN:TP as a fixed effect
+ 
+ -removed `(LakeID:Sample_Year)` because low variance
+
+###Extract average TN:TP values for each lake and year
+```{r, warning=FALSE, message=FALSE}
+#Extracting average annual TP for each lake 
+library(plyr)
+avgTNTP<-ddply(OWCSLAP, c("LakeID", "Sample_Year"), summarize, 
+             Mean = mean(TN_TP, na.rm=TRUE))
+colnames(avgTNTP)[colnames(avgTNTP)=="Mean"] <- "TN_TP"
+
+#Merge these values to the SBCSLAP df 
+SBCSLAP<-SBCSLAP[,c(1:44, 46)]
+SBCSLAP<-merge(SBCSLAP, avgTNTP, by=c("LakeID", "Sample_Year"), all.x=TRUE, all.y=FALSE)
+```
+
+```{r}
+SBmicro<-lmer(log(ESF_Microcystin_ug.L) ~ Dreissenids + TN_TP + log(CA.SA) + Mean_Depth_m + Percent_Ag + (1|Sample_Year) + (1|LakeID), data=SBCSLAP)
+
+summary(SBmicro)
+
+plot(SBmicro)
+
+qqPlot(resid(SBmicro))
+```
+
+#Reduced Dataset
+
+##Open Water TN:TP 
+
+-`Sample_Month` and `Sample_Year` removed for low variance 
+```{r}
+redTNTP<-glmer(TN_TP ~ Dreissenids + Percent_Ag +  (1|LakeID) + (1|Sample_Year:LakeID), data=redOWCSLAP, family=Gamma(link="log"))
+
+summary(redTNTP)
+
+plot(redTNTP)
+
+qqPlot(resid(redTNTP))
+```
+
+##Open Water Chlorophyll-a
+
+-`Sample_Year` and `Sample_Month` removed for having low variance
+```{r}
+redChl<-lmer(log(Extracted_Chl.a_ug.L+1) ~ Dreissenids + Percent_Ag  + (1|LakeID) + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redChl)
+
+plot(redChl)
+
+qqPlot(resid(redChl))
+```
+
+##Open Water Secchi Depth
+
+-`Sample_Year` and `Sample_Month` removed for having low variance
+```{r}
+redSecchi <- lmer(log(Secchi_Depth_m) ~ Dreissenids + Percent_Ag + (1|LakeID) + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redSecchi)
+
+plot(redSecchi)
+
+qqPlot(resid(redSecchi))
+```
+
+##Open Water True Color 
+
+-`Sample_Year` and `Sample_Month` removed for having low variance
+
+-log-transforming True Color does not improve fit
+```{r}
+redOWTC<-lmer(True_Color_PTU ~ Dreissenids + Percent_Ag + (1|LakeID) + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redOWTC)
+
+plot(redOWTC)
+
+qqPlot(resid(redOWTC))
+```
+
+##Shoreline Bloom Chlorophyll a 
+
+-`Sample_Year` removed for low variance
+
+```{r}
+redSBChl<-lmer(log(ESF_Chl.a_ug.L) ~ Dreissenids  + Percent_Ag + (1|Sample_Month) + (1|LakeID) , data=redSBCSLAP)
+
+summary(redSBChl)
+
+plot(redSBChl)
+
+qqPlot(resid(redSBChl))
+```
+
+##Shoreline Bloom Microcystin
+ -**update 03/08** `boundary (singular) fit` Removed random effect of `Sample_Month` with 0.00 variance to resolve warning.
+ 
+ -**update 06/05** adding continuous variable of TN:TP as a fixed effect
+ 
+ -removed `(LakeID:Sample_Year)` because low variance
+
+###Extract average TN:TP values for each lake and year
+```{r, warning=FALSE}
+#Extracting average annual TP for each lake 
+library(plyr)
+redavgTNTP<-ddply(redOWCSLAP, c("LakeID", "Sample_Year"), summarize, 
+             Mean = mean(TN_TP, na.rm=TRUE))
+colnames(redavgTNTP)[colnames(redavgTNTP)=="Mean"] <- "TN_TP"
+
+#Merge these values to the SBCSLAP df 
+redSBCSLAP<-redSBCSLAP[,c(1:52, 54)]
+redSBCSLAP<-merge(redSBCSLAP, redavgTNTP, by=c("LakeID", "Sample_Year"), all.x=TRUE, all.y=FALSE)
+```
+
+```{r}
+redSBmicro<-lmer(log(ESF_Microcystin_ug.L) ~ Dreissenids + TN_TP  + Percent_Ag + (1|Sample_Year) + (1|LakeID), data=redSBCSLAP)
+
+summary(redSBmicro)
+
+plot(redSBmicro)
+
+qqPlot(resid(redSBmicro))
+```
+

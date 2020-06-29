@@ -1,0 +1,522 @@
+---
+title: "CSLAP Gamma Models May 2020"
+author: "Victoria Field"
+date: "5/15/2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(lme4)
+library(ggplot2)
+require(lmerTest)
+library(lattice)
+library(predictmeans)
+library(dplyr)
+library(tidyr)
+library(DHARMa)
+library(magrittr)
+library(pryr)
+library(MASS)
+```
+
+#Data Read In 
+```{r}
+CSLAP<-read.csv("CSLAP_Dataset_09232019.csv", header=TRUE)
+CSLAP$Sample_Year<-as.factor(CSLAP$Sample_Year)
+CSLAP$Sample_Month<-as.factor(CSLAP$Sample_Month)
+
+#Create TN:TP column 
+CSLAP$TN_TP<-(CSLAP$TN_mg.L+.01)/(CSLAP$TP_mg.L+.01)
+
+#Split by `Info_Type`
+OWCSLAP<-CSLAP[CSLAP$Info_Type == "OW",]
+BSCSLAP<-CSLAP[CSLAP$Info_Type == "BS",]
+SBCSLAP<-CSLAP[CSLAP$Info_Type == "SB",]
+noSBCSLAP<-CSLAP[CSLAP$Info_Type != "SB",]
+
+redCSLAP<-read.csv("redCSLAP.csv")
+
+#Create TN:TP column 
+redCSLAP$TN_TP<-(redCSLAP$TN_mg.L+.01)/(redCSLAP$TP_mg.L+.01)
+
+redOWCSLAP<-redCSLAP[redCSLAP$Info_Type == "OW",]
+redBSCSLAP<-redCSLAP[redCSLAP$Info_Type == "BS",]
+redSBCSLAP<-redCSLAP[redCSLAP$Info_Type == "SB",]
+rednoSBCSLAP<-redCSLAP[redCSLAP$Info_Type != "SB",]
+```
+
+#Gamma(link="identity") models for the **Global Dataset** *(n=69
+
+##Open Water TN:TP
+
+```{r}
+TNTP<-glm(TN_TP ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="identity"))
+
+summary(TNTP)
+
+plot(TNTP)
+
+qqPlot(resid(TNTP))
+
+simTNTP  <-  simulateResiduals(TNTP)
+plotSimulatedResiduals(simTNTP) 
+```
+
+##Open Water Total Phosphorus 
+
+###Remove troublesome `LakeID` and `Sample_Year`
+```{r}
+#Select out data of interest
+df <- OWCSLAP %>% dplyr::select(TP_mg.L, Dreissenids, CA.SA, Mean_Depth_m, Sample_Year, Sample_Month, LakeID)
+df <- df[complete.cases(df), ]
+
+#Remove lakes and year 2015
+df <- df[df$LakeID != "0601GUI0188",]
+df <- df[df$LakeID != "1201ECA0697", ]
+df <- df[df$LakeID != "1701LLO0708", ]
+df <- df[df$LakeID != "1201GAL0563", ]
+df <- df[df$Sample_Year != "2015",]
+df$LakeID <- as.factor(as.character(df$LakeID))
+```
+
+```{r}
+OWTP<-glm(TP_mg.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=df, family=Gamma(link="identity"))
+
+summary(OWTP)
+
+plot(OWTP)
+
+qqPlot(resid(OWTP))
+
+simOWTP  <-  simulateResiduals(OWTP)
+plotSimulatedResiduals(simOWTP) 
+```
+
+##Bottom Sample TP 
+
+```{r}
+BSTP<-glm(TP_mg.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=BSCSLAP, family=Gamma(link="identity"))
+
+summary(BSTP)
+
+plot(BSTP)
+
+qqPlot(resid(BSTP))
+
+simBSTP  <-  simulateResiduals(BSTP)
+plotSimulatedResiduals(simBSTP) 
+```
+
+##Open Water TN 
+
+```{r}
+OWTN<-glm(TN_mg.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="identity"))
+
+summary(OWTN)
+
+plot(OWTN)
+
+qqPlot(resid(OWTN))
+
+simOWTN  <-  simulateResiduals(OWTN)
+plotSimulatedResiduals(simOWTN) 
+```
+
+##Open Water Chlorophyll-a 
+
+```{r}
+OWChl<-glm(Extracted_Chl.a_ug.L+.01 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="identity"))
+
+summary(OWChl)
+
+plot(OWChl)
+
+qqPlot(resid(OWChl))
+
+simOWChl  <-  simulateResiduals(OWChl)
+plotSimulatedResiduals(simOWChl) 
+```
+
+##Secchi Depth
+
+```{r}
+OWSecchi<-glm(Secchi_Depth_m ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="identity"))
+
+summary(OWSecchi)
+
+plot(OWSecchi)
+
+qqPlot(resid(OWSecchi))
+
+simOWSecchi  <-  simulateResiduals(OWSecchi)
+plotSimulatedResiduals(simOWSecchi) 
+```
+
+##True Color
+
+```{r}
+OWTC<-glm(True_Color_PTU ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="identity"))
+
+summary(OWTC)
+
+plot(OWTC)
+
+qqPlot(resid(OWTC))
+
+simOWTC  <-  simulateResiduals(OWTC)
+plotSimulatedResiduals(simOWTC) 
+```
+
+##Shoreline Bloom Chlorophyll
+
+```{r}
+SBChl<-glm(ESF_Chl.a_ug.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=SBCSLAP, family=Gamma(link="identity"))
+
+summary(SBChl)
+
+plot(SBChl)
+
+qqPlot(resid(SBChl))
+
+simSBChl  <-  simulateResiduals(SBChl)
+plotSimulatedResiduals(simSBChl) 
+```
+
+##Shoreline Bloom Microcystin
+
+```{r}
+SBmicro<-glm(ESF_Microcystin_ug.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=SBCSLAP, family=Gamma(link="identity"))
+
+summary(SBmicro)
+
+plot(SBmicro)
+
+qqPlot(resid(SBmicro))
+
+simSBmicro  <-  simulateResiduals(SBmicro)
+plotSimulatedResiduals(simSBmicro) 
+```
+
+#Gamma(link="log") models for the **Global Dataset** *(n=69)*
+
+##Open Water TN:TP
+
+```{r}
+TNTP2<-glm(TN_TP ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="log"))
+
+summary(TNTP2)
+
+plot(TNTP2)
+
+qqPlot(resid(TNTP2))
+
+simTNTP2  <-  simulateResiduals(TNTP2)
+plotSimulatedResiduals(simTNTP2) 
+```
+
+##Open Water Total Phosphorus 
+
+```{r}
+OWTP2<-glm(TP_mg.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=df, family=Gamma(link="log"))
+
+summary(OWTP2)
+
+plot(OWTP2)
+
+qqPlot(resid(OWTP2))
+
+simOWTP2  <-  simulateResiduals(OWTP2)
+plotSimulatedResiduals(simOWTP2) 
+```
+
+##Bottom Sample TP 
+
+```{r}
+BSTP2<-glm(TP_mg.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=BSCSLAP, family=Gamma(link="log"))
+
+summary(BSTP2)
+
+plot(BSTP2)
+
+qqPlot(resid(BSTP2))
+
+simBSTP2  <-  simulateResiduals(BSTP2)
+plotSimulatedResiduals(simBSTP2) 
+```
+
+##Open Water TN 
+
+```{r}
+OWTN2<-glm(TN_mg.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="log"))
+
+summary(OWTN2)
+
+plot(OWTN2)
+
+qqPlot(resid(OWTN2))
+
+simOWTN2  <-  simulateResiduals(OWTN2)
+plotSimulatedResiduals(simOWTN2) 
+```
+
+##Open Water Chlorophyll-a 
+
+```{r}
+OWChl2<-glm(Extracted_Chl.a_ug.L+.01 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="log"))
+
+summary(OWChl2)
+
+plot(OWChl2)
+
+qqPlot(resid(OWChl2))
+
+simOWChl2  <-  simulateResiduals(OWChl2)
+plotSimulatedResiduals(simOWChl2) 
+```
+
+##Secchi Depth
+
+```{r}
+OWSecchi2<-glm(Secchi_Depth_m ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="log"))
+
+summary(OWSecchi2)
+
+plot(OWSecchi2)
+
+qqPlot(resid(OWSecchi2))
+
+simOWSecchi2  <-  simulateResiduals(OWSecchi2)
+plotSimulatedResiduals(simOWSecchi2) 
+```
+
+##True Color
+
+```{r}
+OWTC2<-glm(True_Color_PTU ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="log"))
+
+summary(OWTC2)
+
+plot(OWTC2)
+
+qqPlot(resid(OWTC2))
+
+simOWTC2  <-  simulateResiduals(OWTC2)
+plotSimulatedResiduals(simOWTC2) 
+```
+
+##Shoreline Bloom Chlorophyll
+
+```{r}
+SBChl2<-glm(ESF_Chl.a_ug.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=SBCSLAP, family=Gamma(link="log"))
+
+summary(SBChl2)
+
+plot(SBChl2)
+
+qqPlot(resid(SBChl2))
+
+simSBChl2  <-  simulateResiduals(SBChl2)
+plotSimulatedResiduals(simSBChl2) 
+```
+
+##Shoreline Bloom Microcystin
+
+```{r}
+SBmicro2<-glm(ESF_Microcystin_ug.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=SBCSLAP, family=Gamma(link="log"))
+
+summary(SBmicro2)
+
+plot(SBmicro2)
+
+qqPlot(resid(SBmicro2))
+
+simSBmicro2  <-  simulateResiduals(SBmicro2)
+plotSimulatedResiduals(simSBmicro2) 
+```
+
+#Gamma(link="inverse") models for the **Global Dataset** *(n=69)*
+
+##Open Water Total Phosphorus 
+
+```{r}
+OWTP3<-glm(TP_mg.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=df, family=Gamma(link="inverse"))
+
+summary(OWTP3)
+
+plot(OWTP3)
+
+qqPlot(resid(OWTP3))
+
+simOWTP3  <-  simulateResiduals(OWTP3)
+plotSimulatedResiduals(simOWTP3) 
+```
+
+##Bottom Sample TP 
+
+```{r}
+BSTP3<-glm(TP_mg.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=BSCSLAP, family=Gamma(link="inverse"))
+
+summary(BSTP3)
+
+plot(BSTP3)
+
+qqPlot(resid(BSTP3))
+
+simBSTP3  <-  simulateResiduals(BSTP3)
+plotSimulatedResiduals(simBSTP3) 
+```
+
+##Open Water TN 
+
+```{r}
+OWTN3<-glm(TN_mg.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="inverse"))
+
+summary(OWTN3)
+
+plot(OWTN3)
+
+qqPlot(resid(OWTN3))
+
+simOWTN3  <-  simulateResiduals(OWTN3)
+plotSimulatedResiduals(simOWTN3) 
+```
+
+##Open Water Chlorophyll-a 
+
+```{r}
+OWChl3<-glm(Extracted_Chl.a_ug.L+.01 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="inverse"))
+
+summary(OWChl3)
+
+plot(OWChl3)
+
+qqPlot(resid(OWChl3))
+
+simOWChl3  <-  simulateResiduals(OWChl3)
+plotSimulatedResiduals(simOWChl3) 
+```
+
+##Secchi Depth
+
+```{r}
+OWSecchi3<-glm(Secchi_Depth_m ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="inverse"))
+
+summary(OWSecchi3)
+
+plot(OWSecchi3)
+
+qqPlot(resid(OWSecchi3))
+
+simOWSecchi3  <-  simulateResiduals(OWSecchi3)
+plotSimulatedResiduals(simOWSecchi3) 
+```
+
+##True Color
+
+```{r}
+OWTC3<-glm(True_Color_PTU ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=OWCSLAP, family=Gamma(link="inverse"))
+
+summary(OWTC3)
+
+plot(OWTC3)
+
+qqPlot(resid(OWTC3))
+
+simOWTC3  <-  simulateResiduals(OWTC3)
+plotSimulatedResiduals(simOWTC3) 
+```
+
+##Shoreline Bloom Chlorophyll
+`**Model won't run**
+```{r, eval=FALSE}
+SBChl3<-glm(ESF_Chl.a_ug.L+.01 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=SBCSLAP, family=Gamma(link="inverse"))
+
+summary(SBChl3)
+
+plot(SBChl3)
+
+qqPlot(resid(SBChl3))
+
+simSBChl3  <-  simulateResiduals(SBChl3)
+plotSimulatedResiduals(simSBChl3) 
+```
+
+##Shoreline Bloom Microcystin
+`**Model won't run**
+```{r, eval=FALSE}
+SBmicro3<-glm(ESF_Microcystin_ug.L+.01 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=SBCSLAP, family=Gamma(link="inverse"))
+
+summary(SBmicro3)
+
+plot(SBmicro3)
+
+qqPlot(resid(SBmicro3))
+
+simSBmicro3  <-  simulateResiduals(SBmicro3)
+plotSimulatedResiduals(simSBmicro3) 
+```
+
+#Link function comparisons by variable. Order = "Identity", "Log", "Inverse"
+
+##Open Water TP 
+```{r}
+plot(OWTP)
+plot(OWTP2)
+plot(OWTP3)
+```
+
+##Bottom Sample TP
+```{r}
+plot(BSTP)
+plot(BSTP2)
+plot(BSTP3)
+```
+
+##Open Water TN
+```{r}
+plot(OWTN)
+plot(OWTN2)
+plot(OWTN3)
+```
+
+##Open Water Chlorophyll-a
+```{r}
+plot(OWChl)
+plot(OWChl2)
+plot(OWChl3)
+```
+
+##Open Water Secchi depth
+```{r}
+plot(OWSecchi)
+plot(OWSecchi2)
+plot(OWSecchi3)
+```
+
+##Open Water True Color
+```{r}
+plot(OWTC)
+plot(OWTC2)
+plot(OWTC3)
+```
+
+##Shoreline Bloom Chlorophyll 
+-**NOTE** Gamma("inverse") did not work
+```{r}
+plot(SBChl)
+plot(SBChl2)
+```
+
+##Shoreline Bloom Microcystin 
+-**NOTE** Gamma("inverse") did not work
+```{r}
+plot(SBmicro)
+plot(SBmicro2)
+```
+

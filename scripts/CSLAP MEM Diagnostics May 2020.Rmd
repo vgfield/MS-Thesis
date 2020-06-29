@@ -1,0 +1,308 @@
+---
+title: "CSLAP MEM Diagnostics May 2020"
+author: "Victoria Field"
+date: "5/12/2020"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(lme4)
+library(ggplot2)
+require(lmerTest)
+library(lattice)
+library(predictmeans)
+library(dplyr)
+library(tidyr)
+library(DHARMa)
+library(magrittr)
+library(pryr)
+library(MASS)
+```
+
+#Data Read In 
+```{r}
+CSLAP<-read.csv("CSLAP_Dataset_09232019.csv", header=TRUE)
+CSLAP$Sample_Year<-as.factor(CSLAP$Sample_Year)
+CSLAP$Sample_Month<-as.factor(CSLAP$Sample_Month)
+
+#Split by `Info_Type`
+OWCSLAP<-CSLAP[CSLAP$Info_Type == "OW",]
+BSCSLAP<-CSLAP[CSLAP$Info_Type == "BS",]
+SBCSLAP<-CSLAP[CSLAP$Info_Type == "SB",]
+noSBCSLAP<-CSLAP[CSLAP$Info_Type != "SB",]
+
+redCSLAP<-read.csv("redCSLAP.csv")
+
+redOWCSLAP<-redCSLAP[redCSLAP$Info_Type == "OW",]
+redBSCSLAP<-redCSLAP[redCSLAP$Info_Type == "BS",]
+redSBCSLAP<-redCSLAP[redCSLAP$Info_Type == "SB",]
+rednoSBCSLAP<-redCSLAP[redCSLAP$Info_Type != "SB",]
+```
+
+#Mixed Effects Models for the **Global Dataset** *(n=69 lakes)*
+
+##Open Water Total Phosphorus 
+```{r}
+getwd()
+#Select out data of interest
+df <- OWCSLAP %>% dplyr::select(TP_mg.L, Dreissenids, CA.SA, Mean_Depth_m, Sample_Year, Sample_Month, LakeID)
+df <- df[complete.cases(df), ]
+
+#Check distribution 
+##gamma
+gamma <- fitdistr(df$TP_mg.L+0.01, "gamma")
+qqp(df$TP_mg.L+0.01, "gamma", shape = gamma$estimate[[1]], rate = gamma$estimate[[2]])
+
+
+##log-normal 
+qqp(df$TP_mg.L, "lnorm")
+```
+
+###Model 1 - Full Model, TP log transformed
+```{r}
+fit1<-lmer(log(TP_mg.L+.01) ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=df)
+
+summary(fit1)
+
+plot(fit1,col=df$LakeID) #plots model residuals grouped by lake
+plot(fit1,col=df$LakeID, id=0.5, idLabels=~.obs, cex=.5) #plots model residuals with labels (observation number) for values outside Normal confidence limits 
+
+plot(fit1,col=df$Sample_Year) #plots model residuals grouped by year 
+plot(fit1,col=df$Sample_Year, id=0.5, idLabels=~.obs, cex=.5) #plots model residuals with labels (observation number) for values outside Normal confidence limits 
+
+qqnorm(resid(fit1))
+qqline(resid(fit1))
+```
+
+From observation numbers, we can see that those points on the far right of each plot correspond to the following lakes and years: Guilford Lake, East Caroga, Little Long Pond, and Galway Lake. And Year 2015 (blue), Year 2012 (black), Year 2017 (Pink), and Year 2016 (Cyan)
+
+###Model 2 - removing "troublesome" lakes 
+```{r}
+#Select out data of interest
+df2 <- df[df$LakeID != "0601GUI0188",]
+df2 <- df2[df2$LakeID != "1201ECA0697", ]
+df2 <- df2[df2$LakeID != "1701LLO0708", ]
+df2 <- df2[df2$LakeID != "1201GAL0563", ]
+
+fit2<-lmer(log(TP_mg.L+.01) ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=df2)
+
+summary(fit2)
+
+plot(fit2,col=df2$LakeID) #plots model residuals grouped by lake
+plot(fit2,col=df2$LakeID, id=0.5, idLabels=~.obs, cex=.5) #plots model residuals with labels (observation number) for values outside Normal confidence limits 
+
+plot(fit2,col=df2$Sample_Year) #plots model residuals grouped by year 
+plot(fit2,col=df2$Sample_Year, id=0.5, idLabels=~.obs, cex=.5) #plots model residuals with labels (observation number) for values outside Normal confidence limits 
+
+qqnorm(resid(fit2))
+qqline(resid(fit2))
+```
+
+Removing lakes improves residual plot, but not QQ plot 
+
+###Model 3 - removing "troublesome" Year 2015 
+```{r}
+#Select out data of interest
+df3 <- df[df$Sample_Year != "2015",]
+
+
+fit3<-lmer(log(TP_mg.L+.01) ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=df3)
+
+summary(fit3)
+
+plot(fit3,col=df3$LakeID) #plots model residuals grouped by lake
+plot(fit3,col=df3$LakeID, id=0.5, idLabels=~.obs, cex=.5) #plots model residuals with labels (observation number) for values outside Normal confidence limits 
+
+plot(fit3,col=df3$Sample_Year) #plots model residuals grouped by year 
+plot(fit3,col=df3$Sample_Year, id=0.5, idLabels=~.obs, cex=.5) #plots model residuals with labels (observation number) for values outside Normal confidence limits 
+
+qqnorm(resid(fit3))
+qqline(resid(fit3))
+```
+
+Removing 2015 improves neither residuals nor QQ 
+
+###Model 3 - removing "troublesome" lakes AND 2015
+```{r}
+#Select out data of interest
+df4 <- df[df$LakeID != "0601GUI0188",]
+df4 <- df4[df4$LakeID != "1201ECA0697", ]
+df4 <- df4[df4$LakeID != "1701LLO0708", ]
+df4 <- df4[df4$LakeID != "1201GAL0563", ]
+df4 <- df4[df4$Sample_Year != "2015",]
+df4$LakeID <- levels(droplevels(df4$LakeID))
+
+fit4<-lmer(log(TP_mg.L+.01) ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=df4)
+
+summary(fit4)
+
+plot(fit4,col=df4$LakeID) #plots model residuals grouped by lake
+plot(fit4,col=df4$LakeID, id=0.5, idLabels=~.obs, cex=.5) #plots model residuals with labels (observation number) for values outside Normal confidence limits 
+
+plot(fit4,col=df4$Sample_Year) #plots model residuals grouped by year 
+plot(fit4,col=df4$Sample_Year, id=0.5, idLabels=~.obs, cex=.5) #plots model residuals with labels (observation number) for values outside Normal confidence limits 
+
+qqnorm(resid(fit4))
+qqline(resid(fit4))
+
+qqPlot(resid(fit4))
+
+gg <- ggplot(data = df4, mapping = aes(sample = norm)) +
+    geom_qq_band(bandType = "ks", mapping = aes(fill = "KS"), alpha = 0.5) +
+    geom_qq_band(bandType = "ts", mapping = aes(fill = "TS"), alpha = 0.5) +
+    geom_qq_band(bandType = "pointwise", mapping = aes(fill = "Normal"), alpha = 0.5) +
+    geom_qq_band(bandType = "boot", mapping = aes(fill = "Bootstrap"), alpha = 0.5) +
+    stat_qq_line() +
+    stat_qq_point() +
+    labs(x = "Theoretical Quantiles", y = "Sample Quantiles") +
+    scale_fill_discrete("Bandtype")
+gg
+```
+
+Removing "bad" lakes and Year 2015 improves residual plot the most, but the QQ line is still wonky 
+
+##Alternate distributions using Generalized Linear Mixed Effects Model 
+
+###Model 1 - Gaussian Family with Log Link
+
+```{r}
+#model transformed
+Gfit<-glmer(TP_mg.L+1 ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year) + (1 | Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=df4, family=gaussian(link="log"))
+
+summary(Gfit)
+
+plot(fitted(Gfit), residuals(Gfit), xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, lty = 2)
+lines(smooth.spline(fitted(Gfit), residuals(Gfit)))
+
+qqnorm(resid(Gfit))
+
+simfit  <-  simulateResiduals(Gfit)
+plotSimulatedResiduals(simfit) 
+```
+
+###Model 2 - Gamma with Inverse Link
+
+```{r}
+#model transformed
+Gfit2<-glmer(TP_mg.L+.01 ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year) + (1 | Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=df, family=Gamma(link="inverse"))
+
+summary(Gfit2)
+
+plot(fitted(Gfit2), residuals(Gfit2), xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, lty = 2)
+lines(smooth.spline(fitted(Gfit2), residuals(Gfit2)))
+
+```
+
+###Model 2b - Gamma with Inverse Link and lakes and year 2015 removed
+
+```{r}
+#model transformed
+Gfit2b<-glmer(TP_mg.L+.01 ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year) + (1 | Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=df4, family=Gamma(link="inverse"))
+
+summary(Gfit2b)
+
+plot(fitted(Gfit2b), residuals(Gfit2b), xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, lty = 2)
+lines(smooth.spline(fitted(Gfit2b), residuals(Gfit2b)))
+
+```
+
+###Model 3 - Gamma with Log Link
+-Errors: 1) Model is nearly unidentifiable  2) Model failed to converge 
+-Tried re-scaling Mean Depth using log transformation
+```{r}
+#model transformed
+Gfit3<-glmer(TP_mg.L+.01 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + (1|Sample_Year) + (1 | Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=df, family=Gamma(link="log"))
+
+summary(Gfit3)
+
+plot(fitted(Gfit3), residuals(Gfit3), xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, lty = 2)
+lines(smooth.spline(fitted(Gfit3), residuals(Gfit3)))
+
+simGfit3  <-  simulateResiduals(Gfit3)
+plotSimulatedResiduals(simGfit3) 
+
+```
+
+###Model 3b - Gamma with Log Link and lakes and Year 2015 removed
+-Error: 1) Model failed to converge 
+```{r}
+#model transformed
+Gfit3b<-glmer(TP_mg.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + (1|Sample_Year) + (1 | Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=df4, family=Gamma(link="log"))
+
+summary(Gfit3b)
+
+plot(fitted(Gfit3b), residuals(Gfit3b), xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, lty = 2)
+lines(smooth.spline(fitted(Gfit3b), residuals(Gfit3b)))
+
+simGfit3b  <-  simulateResiduals(Gfit3b)
+plotSimulatedResiduals(simGfit3b) 
+
+```
+
+###Model 3c - Gamma with Identity Link
+
+```{r}
+#model transformed
+Gfit3c<-glmer(TP_mg.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + (1|Sample_Year) + (1 | Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=df, family=Gamma(link="identity"))
+
+summary(Gfit3c)
+
+plot(fitted(Gfit3c), residuals(Gfit3c), xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, lty = 2)
+lines(smooth.spline(fitted(Gfit3c), residuals(Gfit3c)))
+
+control<-glmerControl(optimizer="bobyqa")
+simGfit3c  <-  simulateResiduals(Gfit3c)
+plotSimulatedResiduals(simGfit3c) 
+
+```
+
+###Model 3d - Gamma with Identity Link and lakes/Sample Year 2015 removed
+-Model failed to converge, model is nearly unidentifiable
+```{r}
+#model transformed
+Gfit3d<-glmer(TP_mg.L+1.0 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m)  + (1|LakeID) + (1|Sample_Year) + (1 | Sample_Month) + (1|Sample_Year:LakeID), data=df4, family=Gamma(link="identity"))
+
+summary(Gfit3d)
+
+plot(Gfit3d)
+
+plot(fitted(Gfit3d), residuals(Gfit3d), xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, lty = 2)
+lines(smooth.spline(fitted(Gfit3d), residuals(Gfit3d)))
+
+qqPlot(resid(Gfit3d))
+
+simGfit3d  <-  simulateResiduals(Gfit3d)
+plotSimulatedResiduals(simGfit3d) 
+
+```
+
+###Model 3e - GLM (no random effects) Gamma with Identity Link and lakes/Sample Year 2015 removed
+
+```{r}
+#model transformed
+Gfit3e<-glm(TP_mg.L+1 ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m), data=df4, family=Gamma(link="identity"))
+
+summary(Gfit3e)
+
+plot(Gfit3e)
+
+plot(fitted(Gfit3e), residuals(Gfit3e), xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, lty = 2)
+lines(smooth.spline(fitted(Gfit3e), residuals(Gfit3e)))
+
+
+simGfit3e  <-  simulateResiduals(Gfit3e)
+plotSimulatedResiduals(simGfit3e) 
+
+
+```

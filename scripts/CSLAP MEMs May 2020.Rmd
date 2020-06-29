@@ -1,0 +1,344 @@
+---
+title: "CSLAP MEMs May 2020"
+author: "Victoria Field"
+date: "5/15/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(lme4)
+library(ggplot2)
+require(lmerTest)
+library(lattice)
+library(predictmeans)
+library(dplyr)
+library(tidyr)
+library(DHARMa)
+library(magrittr)
+library(pryr)
+library(MASS)
+```
+
+#Data Read In 
+```{r}
+CSLAP<-read.csv("CSLAP_Dataset_09232019.csv", header=TRUE)
+CSLAP$Sample_Year<-as.factor(CSLAP$Sample_Year)
+CSLAP$Sample_Month<-as.factor(CSLAP$Sample_Month)
+
+#Create TN:TP column 
+CSLAP$TP_TN<-CSLAP$TN_mg.L/CSLAP$TP_mg.L
+
+#Split by `Info_Type`
+OWCSLAP<-CSLAP[CSLAP$Info_Type == "OW",]
+BSCSLAP<-CSLAP[CSLAP$Info_Type == "BS",]
+SBCSLAP<-CSLAP[CSLAP$Info_Type == "SB",]
+noSBCSLAP<-CSLAP[CSLAP$Info_Type != "SB",]
+
+
+redCSLAP<-read.csv("redCSLAP.csv")
+
+#Create TN:TP column 
+redCSLAP$TP_TN<-redCSLAP$TN_mg.L/redCSLAP$TP_mg.L
+
+redOWCSLAP<-redCSLAP[redCSLAP$Info_Type == "OW",]
+redBSCSLAP<-redCSLAP[redCSLAP$Info_Type == "BS",]
+redSBCSLAP<-redCSLAP[redCSLAP$Info_Type == "SB",]
+rednoSBCSLAP<-redCSLAP[redCSLAP$Info_Type != "SB",]
+```
+
+#Mixed Effects Models for the **Global Dataset** *(n=69)*
+
+##Open Water Total Phosphorus 
+
+###Remove troublesome `LakeID` and `Sample_Year`
+```{r}
+#Select out data of interest
+df <- OWCSLAP %>% dplyr::select(TP_mg.L, Dreissenids, CA.SA, Mean_Depth_m, Sample_Year, Sample_Month, LakeID)
+df <- df[complete.cases(df), ]
+
+#Remove lakes and year 2015
+df <- df[df$LakeID != "0601GUI0188",]
+df <- df[df$LakeID != "1201ECA0697", ]
+df <- df[df$LakeID != "1701LLO0708", ]
+df <- df[df$LakeID != "1201GAL0563", ]
+df <- df[df$Sample_Year != "2015",]
+df$LakeID <- as.factor(as.character(df$LakeID))
+```
+
+###Fit the model
+```{r}
+OWTP<-lmer(log(TP_mg.L+.01) ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=df)
+
+summary(OWTP)
+```
+
+###Model diagnostics
+```{r}
+plot(OWTP)
+
+qqmath(OWTP)
+
+qqPlot(resid(OWTP))
+```
+
+##Bottom Sample Total Phosphorus 
+-**Updated 03/08** `boundary (singular) fit` removed random effect of Sample_Month (variance =0.00), but then output `Model failed to converge` warning 
+
+-**Updated 03/09** `Model failed to converge` fixed by taking log of mean_depth_m and adding only .01 to `log(TP_mg.L)` instead of 1
+
+###Fit the model
+```{r}
+BSTP<-lmer(log(TP_mg.L+.01) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m)  + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=BSCSLAP)
+
+summary(BSTP)
+```
+
+###Model diagnostics
+```{r}
+plot(BSTP)
+
+qqPlot(resid(BSTP))
+```
+
+##Open Water Chlorophyll a
+
+###Fit the model
+```{r}
+Chl<-lmer(log(Extracted_Chl.a_ug.L+1) ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=OWCSLAP)
+
+summary(Chl)
+```
+
+###Model diagnostics
+```{r}
+plot(Chl)
+
+qqPlot(resid(Chl))
+```
+
+##Open Water True Color
+
+###Fit the model
+```{r}
+OWTC<-lmer(log(True_Color_PTU) ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=OWCSLAP)
+
+summary(OWTC)
+```
+
+###Model diagnostics
+```{r}
+plot(OWTC)
+
+qqPlot(resid(OWTC))
+```
+
+##Open Water Total Nitrogen
+
+###Fit the model
+```{r}
+OWTN<-lmer(log(TN_mg.L+1) ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=OWCSLAP)
+
+summary(OWTN)
+```
+
+```{r}
+plot(OWTN)
+
+qqPlot(resid(OWTN))
+```
+
+##Secchi Depth
+-**Update 03/08** `Model failed to converge` removed log-transformation of Secchi to resolve
+
+###Fit the model
+```{r}
+Secchi<-lmer(Secchi_Depth_m ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=noSBCSLAP)
+
+summary(Secchi)
+```
+
+###Model Diagnostics
+```{r}
+plot(Secchi)
+
+qqPlot(resid(Secchi))
+```
+
+
+##Shoreline Bloom Chlorophyll a 
+-**update 03/08** `boundary (singular) fit` Removed random effect of Sample_Year with ~0.00 variance to resolve warning.
+
+###Fit the model
+```{r}
+SBChl<-lmer(log(ESF_Chl.a_ug.L) ~ Dreissenids + log(CA.SA) + Mean_Depth_m  + (1|Sample_Month) + (1|LakeID) , data=SBCSLAP)
+
+summary(SBChl)
+```
+
+###Model diagnostics
+```{r}
+plot(SBChl)
+
+qqPlot(resid(SBChl))
+```
+
+##Shoreline Bloom Microcystin
+ -**update 03/08** `boundary (singular) fit` Removed random effect of Sample_Month with 0.00 variance to resolve warning.
+ 
+###Fit the model
+```{r}
+SBmicro<-lmer(log(ESF_Microcystin_ug.L) ~ Dreissenids + log(CA.SA) + Mean_Depth_m + (1|Sample_Year)  + (1|LakeID) + (1|Sample_Year:LakeID), data=SBCSLAP)
+
+summary(SBmicro)
+```
+
+```{r}
+plot(SBmicro)
+
+qqPlot(resid(SBmicro))
+```
+
+#Mixed Effects Models for the **Reduced Dataset** *(n=16)*
+
+##Open Water Total Phosphorus 
+  -**update 03/08** `Model failed to converge.` Removed random effect of LakeID to ~0.00 variance to resolve warning.
+
+###Fit the model
+```{r}
+redOWTP<-lmer(log(TP_mg.L+1) ~ Dreissenids.x  + (1|Sample_Year) + (1|Sample_Month)  + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redOWTP)
+```
+
+###Model Diagnostics
+```{r}
+plot(redOWTP)
+
+qqPlot(resid(redOWTP))
+```
+
+##Bottom Sample Total Phosphorus 
+-**Update 03/08** `boundary (singular) fit` removed random effect of LakeID (variance = 0.00) to resolve warning
+-**Update 05/15*** `boundary (singular) fit` removed random effect of Sample Year to resolve warning
+
+###Fit the model
+```{r}
+redBSTP<-lmer(log(TP_mg.L+1) ~ Dreissenids.x  + (1|Sample_Month)  + (1|Sample_Year:LakeID), data=redBSCSLAP)
+
+summary(redBSTP)
+```
+
+###Model diagnostics
+```{r}
+plot(redBSTP)
+
+qqPlot(resid(redBSTP))
+```
+
+
+##Open Water Chlorophyll a
+-**Update 03/10** `Model failed to converge` fixed by adding .01 to `log(Extracted_Chl.a_ug.L)` instead of 1 
+
+###Fit the model
+```{r}
+redChl<-lmer(log(Extracted_Chl.a_ug.L+.01) ~ Dreissenids.x  + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redChl)
+```
+
+###Model diagnostics
+```{r}
+plot(redChl)
+
+qqPlot(resid(redChl))
+```
+
+##Open Water True Color
+**Update 03/31** Removed `Sample_Month:LakeID` to alleviate Convergence Code error
+
+###Fit the model
+```{r}
+redOWTC<-lmer(log(True_Color_PTU) ~ Dreissenids.x  + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redOWTC)
+```
+
+###Model diagnostics
+```{r}
+plot(redOWTC)
+
+qqPlot(resid(redOWTC))
+```
+
+##Open Water Total Nitrogen
+-**Update 03/10** `Model failed to converge` resolved by removing low variance factor of `Sample_Month` and adding .01 to `log(TN_mg.L)` instead of 1.0 
+-**Update 05/15** `Model failed to converge` resolved by adding 1.0 to `log(TN_mg.L)` instead of 0.1
+
+###Fit the model
+```{r}
+redOWTN<-lmer(log(TN_mg.L+1) ~ Dreissenids.x  + (1|Sample_Year)  + (1|LakeID) + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redOWTN)
+```
+
+###Model diagnostics
+```{r}
+plot(redOWTN)
+
+qqPlot(resid(redOWTN))
+```
+
+##Secchi Depth
+**Update 05/15** `boundary (singular) fit` resolved by removing `Sample Month` (variance = 0.00)
+**Update 05/15** `Model failed to converge` resolved by NOT log transforming `Secchi depth`
+
+###Fit the Model
+```{r}
+redSecchi<-lmer(Secchi_Depth_m ~ Dreissenids.x + (1|Sample_Year) + (1|LakeID) + (1|Sample_Year:LakeID), data=rednoSBCSLAP)
+
+summary(redSecchi)
+```
+
+###Model diagnostics
+```{r}
+plot(redSecchi)
+
+qqPlot(resid(redSecchi))
+```
+
+##Shoreline Bloom Chlorophyll a 
+-**update 03/08** `boundary (singular) fit` removed random effect of Sample_Year and Sample_Year:LakeID to resolve
+
+###Fit the model
+```{r}
+redSBChl<-lmer(log(ESF_Chl.a_ug.L) ~ Dreissenids.x  + (1|Sample_Month) + (1|LakeID), data=redSBCSLAP)
+
+summary(redSBChl)
+```
+
+###Model diagnostics
+```{r}
+plot(redSBChl)
+
+qqPlot(resid(redSBChl))
+```
+
+##Shoreline Bloom Microcystin
+-**Update 03/08** `boundary (singular) fit`, `model matrix error`, and `model failed to converge` so removed random effect of Sample_Year:LakeID, random effect of month, and fixed effect of Mean_Depth_m to resolve
+
+###Fit the model
+```{r}
+redMicro<-lmer(log(ESF_Microcystin_ug.L+1) ~ Dreissenids.x + (1|Sample_Year)  + (1|LakeID), data=redSBCSLAP)
+
+summary(redMicro)
+```
+
+###Model diagnostics
+```{r}
+plot(redMicro)
+
+qqPlot(resid(redMicro))
+```
+

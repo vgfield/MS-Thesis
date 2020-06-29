@@ -1,0 +1,84 @@
+---
+title: "Historical Secchi only - Apr 2020"
+author: "Victoria_Field"
+date: "4/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+hisCSLAP<-read.csv("Historical_CSLAP.csv", na.strings=c("", " ", "ND", "NA", "no filter", "nofilter"))
+
+#extract sample year and month 
+hisCSLAP$Sample_Year<-as.numeric(format(as.Date(hisCSLAP$Sample_Date, format="%m/%d/%Y"),"%Y"))
+hisCSLAP$Sample_Month<-as.numeric(format(as.Date(hisCSLAP$Sample_Date, format="%m/%d/%Y"),"%m"))
+```
+
+##Read in mean depths, CA:SA, invasion_by_year, and invasion year and merge 
+```{r}
+CA_SA<-read.csv("Catchment_SA.csv", header=TRUE, colClasses=c("character", "numeric"))
+CA_SA[13,1]<- "De Ruyter Reservoir"
+
+Mean_Depth<-read.csv("MeanDepths.csv", header=TRUE, colClasses=c("character", "numeric"))
+
+Invasion_Year<-read.csv("InvasionYear.csv", header=TRUE, colClasses=c("factor", "numeric"))
+
+#merge with hisCSLAP
+hisCSLAP<-merge(hisCSLAP, CA_SA, all.x=TRUE)
+hisCSLAP<-merge(hisCSLAP, Mean_Depth, all.x=TRUE)
+hisCSLAP<-merge(hisCSLAP, Invasion_Year, all.x=TRUE)
+
+#create new column `Years_Invaded` by subtracting `Invasion Year` from `Sample Year`
+hisCSLAP$Years_Invaded<-hisCSLAP$Sample_Year-hisCSLAP$Invasion_Year
+
+#turn `Sample_Year`, `Sample_Month`, and `Invasion_Year` back to factors
+hisCSLAP$Sample_Year<-as.factor(hisCSLAP$Sample_Year)
+hisCSLAP$Sample_Month<-as.factor(hisCSLAP$Sample_Month)
+hisCSLAP$Invasion_Year<-as.factor(hisCSLAP$Invasion_Year)
+
+#create column with 'Invaded' or "Uninvaded" based on `Years Invaded`
+hisCSLAP$Dreissenids<-ifelse(hisCSLAP$Years_Invaded >= 0, "Invaded", "Uninvaded")
+hisCSLAP$Dreissenids<-as.factor(hisCSLAP$Dreissenids)
+```
+
+
+#Aggregating yearly means by lake and years invaded
+```{r}
+Secchi<-aggregate(Secchi_Depth_m ~ Lake_Name + Years_Invaded, data=hisCSLAP, FUN=mean)
+
+Chl<-aggregate(Extracted_Chl_ug.L ~ Lake_Name + Years_Invaded, data=hisCSLAP, FUN=mean)
+```
+
+#t-test pre and post invasion and MEMs
+
+##Secchi Depth
+```{r}
+hist(hisCSLAP$Secchi_Depth_m)
+t.test(Secchi_Depth_m~Dreissenids, data=hisCSLAP)
+
+Secchi.lmer<-lmer(Secchi_Depth_m ~ Dreissenids + (1|LakeID), data=hisCSLAP)
+
+summary(Secchi.lmer)
+```
+
+```{r}
+ggplot(hisCSLAP, aes(x=Dreissenids, y=Secchi_Depth_m))+
+  geom_boxplot()+
+  theme_minimal()+
+  labs(y = "Secchi Depth (m)")
+
+ggsave("historical_Secchi.png")
+```
+
+
+
+
+
+
+
+
+

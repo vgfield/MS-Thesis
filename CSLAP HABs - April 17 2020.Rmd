@@ -1,0 +1,227 @@
+---
+title: "CSLAP HABs - April 2020"
+author: "Victoria_Field"
+date: "4/03/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(lme4)
+library(ggplot2)
+require(lmerTest)
+library(dplyr)
+library(reshape)
+library(plyr)
+library(reshape2)
+library(DHARMa)
+```
+
+#Data Read-In and Split By Info Type
+```{r}
+#global dataset read in 
+CSLAP<-read.csv("CSLAP_Dataset_09232019.csv", header=TRUE)
+CSLAP$Sample_Year<-as.factor(CSLAP$Sample_Year)
+CSLAP$Sample_Month<-as.factor(CSLAP$Sample_Month)
+
+#create column based on 25 ug/L BGA guideline (from NYS DEC)
+CSLAP$Bloom <- ifelse(CSLAP$ESF_BGA_ug.L >=25.0, "Bloom", "No Bloom")
+CSLAP$Bloom <- as.factor(CSLAP$Bloom)
+
+#Separate based on invasion status and drop unused levels of Lake Name
+I.CSLAP<-CSLAP[CSLAP$Dreissenids == "Invaded",]
+I.CSLAP$Lake_Name<-droplevels(I.CSLAP$Lake_Name)
+
+U.CSLAP<-CSLAP[CSLAP$Dreissenids == "Uninvaded",]
+U.CSLAP$Lake_Name<-droplevels(U.CSLAP$Lake_Name)
+
+#reduced dataset read in 
+redCSLAP<-read.csv("redCSLAP.csv")
+redCSLAP$Sample_Year<-as.factor(redCSLAP$Sample_Year)
+redCSLAP$Sample_Month<-as.factor(redCSLAP$Sample_Month)
+
+names(redCSLAP)[4]<-"Lake_Name"
+
+#create column based on 25 ug/L BGA guideline (from NYS DEC)
+redCSLAP$Bloom <- ifelse(redCSLAP$ESF_BGA_ug.L >=25.0, "Bloom", "No Bloom")
+redCSLAP$Bloom <- as.factor(redCSLAP$Bloom)
+
+
+#Separate based on invasion status and drop unused levels of Lake Name
+I.redCSLAP<-redCSLAP[redCSLAP$Dreissenids.x == "Invaded",]
+I.redCSLAP$Lake_Name<-droplevels(I.redCSLAP$Lake_Name)
+
+U.redCSLAP<-redCSLAP[redCSLAP$Dreissenids.x == "Uninvaded",]
+U.redCSLAP$Lake_Name<-droplevels(U.redCSLAP$Lake_Name)
+```
+
+
+
+#Global Dataset 
+
+##Data organization for # of blooms
+```{r}
+table(CSLAP[, c("Bloom", "Dreissenids")])
+
+HABFreqYear<-as.data.frame(table(CSLAP[,c("Bloom","Dreissenids","Sample_Year")]))
+
+HABFreqLake<-as.data.frame(table(CSLAP[,c("Bloom","Dreissenids","Lake_Name")]))
+
+#separate by invaded and uninvaded
+I.blooms<-as.data.frame(table(I.CSLAP[,c("Lake_Name","Bloom")]))
+I.blooms$Dreissenids<-rep("Invaded", 16)
+
+U.blooms<-as.data.frame(table(U.CSLAP[,c("Lake_Name","Bloom")]))
+U.blooms$Dreissenids<-rep("Uninvaded", 126)
+
+#Make into one dataframe for analysis
+blooms<-rbind(I.blooms, U.blooms)
+
+#Remove 'no blooms' 
+blooms<-blooms[blooms$Bloom == "Bloom",]
+```
+
+##AOV
+```{r}
+fit<-aov(Freq ~ Dreissenids, data=blooms)
+summary(fit)
+TukeyHSD(fit)
+```
+
+##GLMER poisson 
+
+```{r}
+hist(blooms$Freq)
+
+model<-glmer(Freq ~ Dreissenids + (1|Lake_Name), family=poisson(link=log), data=blooms)
+summary(model)
+```
+
+```{r}
+res<-simulateResiduals(model)
+plot(res)
+
+testResiduals(res)
+
+testZeroInflation(res)
+```
+
+
+
+#Reduced Dataset 
+```{r}
+redHABFreqYear<-as.data.frame(table(redCSLAP[,c("Bloom","Dreissenids.x","Sample_Year")]))
+```
+
+##Data organization for analysis 
+```{r}
+#separate by invaded and uninvaded
+I.redblooms<-as.data.frame(table(I.redCSLAP[,c("Lake_Name","Bloom")]))
+I.redblooms$Dreissenids<-rep("Invaded", 16)
+
+U.redblooms<-as.data.frame(table(U.redCSLAP[,c("Lake_Name","Bloom")]))
+U.redblooms$Dreissenids<-rep("Uninvaded", 20)
+
+#Make into one dataframe for analysis
+redblooms<-rbind(I.redblooms, U.redblooms)
+
+#Remove 'no blooms' 
+redblooms<-redblooms[redblooms$Bloom == "Bloom",]
+```
+
+##AOV
+```{r}
+redfit<-aov(Freq ~ Dreissenids, data=redblooms)
+summary(redfit)
+TukeyHSD(redfit)
+```
+
+##GLMER poisson 
+
+```{r}
+hist(redblooms$Freq)
+
+redmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name), family=poisson(link=log), data=redblooms)
+summary(redmodel)
+```
+
+```{r}
+redres<-simulateResiduals(redmodel)
+plot(redres)
+
+testResiduals(redres)
+
+testZeroInflation(redres)
+```
+
+#Frequency of HT HABs
+
+##Create new dataframe with column for HT blooms (Global Dataset)
+```{r}
+HTBloom<-CSLAP[which(CSLAP$Bloom == "Bloom"), ]
+
+#create df of only OW blooms, then use 10 ug/L microcystin to get HT blooms
+OWHTBloom<-HTBloom[HTBloom$Info_Type == "OW",]
+OWHTBloom$HTBloom <- ifelse(OWHTBloom$ESF_Microcystin_ug.L >= 10.0, "HT Bloom", "No HT Bloom")
+
+#create df of only SB blooms, then use 20 ug/L microcystin to get HT blooms
+SBHTBloom<-HTBloom[HTBloom$Info_Type == "SB",]
+SBHTBloom$HTBloom <- ifelse(SBHTBloom$ESF_Microcystin_ug.L >= 20.0, "HT Bloom", "No HT Bloom")
+
+#Separate based on invasion status and drop unused levels of Lake Name
+I.SBHTBloom<-SBHTBloom[SBHTBloom$Dreissenids == "Invaded",]
+I.SBHTBloom$Lake_Name<-droplevels(I.SBHTBloom$Lake_Name)
+
+U.SBHTBloom<-SBHTBloom[SBHTBloom$Dreissenids == "Uninvaded",]
+U.SBHTBloom$Lake_Name<-droplevels(U.SBHTBloom$Lake_Name)
+```
+
+#Global Dataset 
+
+##Data organization for # of blooms
+```{r}
+#separate by invaded and uninvaded
+I.HTblooms<-as.data.frame(table(I.SBHTBloom[,c("Lake_Name","HTBloom")]))
+I.HTblooms$Dreissenids<-rep("Invaded", 8)
+
+U.HTblooms<-as.data.frame(table(U.SBHTBloom[,c("Lake_Name","HTBloom")]))
+U.HTblooms$Dreissenids<-rep("Uninvaded", 56)
+
+#Make into one dataframe for analysis
+HTblooms<-rbind(I.HTblooms, U.HTblooms)
+
+#Remove 'no blooms' 
+HTblooms<-HTblooms[HTblooms$HTBloom == "HT Bloom",]
+```
+
+##AOV
+```{r}
+HTfit<-aov(Freq ~ Dreissenids, data=HTblooms)
+summary(HTfit)
+TukeyHSD(HTfit)
+```
+
+##GLMER poisson 
+
+```{r}
+hist(HTblooms$Freq)
+
+HTmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name), family=poisson(link=log), data=HTblooms)
+summary(HTmodel)
+```
+
+```{r}
+HTres<-simulateResiduals(HTmodel)
+plot(HTres)
+
+testResiduals(HTres)
+
+testZeroInflation(HTres)
+```
+
+
+
+
+
+

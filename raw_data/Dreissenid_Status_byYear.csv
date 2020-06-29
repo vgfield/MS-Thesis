@@ -1,0 +1,360 @@
+LakeID,Lake_Name,Sample_Year,Dreissenids
+1005GLE0441,Glen Lake,2016,Invaded
+1005GLE0441,Glen Lake,2015,Invaded
+1005GLE0441,Glen Lake,2012,Invaded
+1005GLE0441,Glen Lake,2014,Invaded
+1005GLE0441,Glen Lake,2013,Invaded
+1005GLE0441,Glen Lake,2017,Invaded
+0602CRO0073,Crooked Lake,2016,Uninvaded
+0602CRO0073,Crooked Lake,2015,Uninvaded
+0602CRO0073,Crooked Lake,2012,Uninvaded
+0602CRO0073,Crooked Lake,2013,Uninvaded
+0602CRO0073,Crooked Lake,2014,Uninvaded
+0602CRO0073,Crooked Lake,2017,Uninvaded
+0602PET0078,Lake Petonia,2016,Uninvaded
+0602PET0078,Lake Petonia,2015,Uninvaded
+0602PET0078,Lake Petonia,2012,Uninvaded
+0602PET0078,Lake Petonia,2013,Uninvaded
+0602PET0078,Lake Petonia,2014,Uninvaded
+0602PET0078,Lake Petonia,2017,Uninvaded
+0703TUS0153A,Tuscarora Lake,2016,Invaded
+0703TUS0153A,Tuscarora Lake,2015,Invaded
+0703TUS0153A,Tuscarora Lake,2012,Invaded
+0703TUS0153A,Tuscarora Lake,2013,Invaded
+0703TUS0153A,Tuscarora Lake,2017,Invaded
+0201CUB0115,Cuba Lake,2016,Uninvaded
+0201CUB0115,Cuba Lake,2015,Uninvaded
+0201CUB0115,Cuba Lake,2012,Uninvaded
+0201CUB0115,Cuba Lake,2013,Uninvaded
+0201CUB0115,Cuba Lake,2014,Uninvaded
+0201CUB0115,Cuba Lake,2017,Uninvaded
+1104SAC0314,Sacandaga Lake,2012,Uninvaded
+1104SAC0314,Sacandaga Lake,2013,Uninvaded
+1104SAC0314,Sacandaga Lake,2017,Uninvaded
+1102BAB1109,Babcock Lake,2016,Uninvaded
+1102BAB1109,Babcock Lake,2014,Uninvaded
+1102BAB1109,Babcock Lake,2015,Uninvaded
+1102BAB1109,Babcock Lake,2012,Uninvaded
+1102BAB1109,Babcock Lake,2013,Uninvaded
+1102BAB1109,Babcock Lake,2017,Uninvaded
+1404OQU0383,Oquaga Lake,2016,Uninvaded
+1404OQU0383,Oquaga Lake,2015,Uninvaded
+1404OQU0383,Oquaga Lake,2012,Uninvaded
+1404OQU0383,Oquaga Lake,2013,Uninvaded
+1404OQU0383,Oquaga Lake,2014,Uninvaded
+1404OQU0383,Oquaga Lake,2017,Uninvaded
+1104SCH0374,Schroon Lake,2012,Uninvaded
+1104SCH0374,Schroon Lake,2013,Uninvaded
+1104SCH0374,Schroon Lake,2014,Uninvaded
+1104SCH0374,Schroon Lake,2015,Uninvaded
+1104SCH0374,Schroon Lake,2016,Uninvaded
+1104SCH0374,Schroon Lake,2017,Uninvaded
+0602HAT0155,Hatch Lake,2016,Invaded
+0602HAT0155,Hatch Lake,2012,Uninvaded
+0602HAT0155,Hatch Lake,2013,Invaded
+0602HAT0155,Hatch Lake,2014,Invaded
+0602HAT0155,Hatch Lake,2017,Invaded
+0602EAR0146,Craine Lake,2016,Invaded
+0602EAR0146,Craine Lake,2013,Invaded
+0602EAR0146,Craine Lake,2015,Invaded
+0602EAR0146,Craine Lake,2012,Invaded
+0602EAR0146,Craine Lake,2014,Invaded
+0602EAR0146,Craine Lake,2017,Invaded
+0602EAT0163,Eaton Brook Reservoir,2016,Invaded
+0602EAT0163,Eaton Brook Reservoir,2015,Invaded
+0602EAT0163,Eaton Brook Reservoir,2012,Invaded
+0602EAT0163,Eaton Brook Reservoir,2013,Invaded
+0602EAT0163,Eaton Brook Reservoir,2017,Invaded
+0703DER0139A,De Ruyter Reservoir,2016,Invaded
+0703DER0139A,De Ruyter Reservoir,2014,Invaded
+0703DER0139A,De Ruyter Reservoir,2015,Invaded
+0703DER0139A,De Ruyter Reservoir,2012,Invaded
+0703DER0139A,De Ruyter Reservoir,2013,Invaded
+0703DER0139A,De Ruyter Reservoir,2017,Invaded
+0703CAZ0153,Cazenovia Lake,2016,Invaded
+0703CAZ0153,Cazenovia Lake,2014,Invaded
+0703CAZ0153,Cazenovia Lake,2012,Invaded
+0703CAZ0153,Cazenovia Lake,2013,Invaded
+0703CAZ0153,Cazenovia Lake,2015,Invaded
+0703CAZ0153,Cazenovia Lake,2017,Invaded
+0602BRA0154,Bradley Brook Reservoir,2016,Uninvaded
+0602BRA0154,Bradley Brook Reservoir,2012,Uninvaded
+0602BRA0154,Bradley Brook Reservoir,2013,Uninvaded
+0602BRA0154,Bradley Brook Reservoir,2014,Uninvaded
+0602BRA0154,Bradley Brook Reservoir,2017,Uninvaded
+0906BON0024,Lake Bonaparte,2016,Uninvaded
+0906BON0024,Lake Bonaparte,2014,Uninvaded
+0906BON0024,Lake Bonaparte,2015,Uninvaded
+0906BON0024,Lake Bonaparte,2012,Uninvaded
+0906BON0024,Lake Bonaparte,2013,Uninvaded
+0906BON0024,Lake Bonaparte,2017,Uninvaded
+1310QUE0057,Queechy Lake,2016,Uninvaded
+1310QUE0057,Queechy Lake,2015,Uninvaded
+1310QUE0057,Queechy Lake,2012,Uninvaded
+1310QUE0057,Queechy Lake,2013,Uninvaded
+1310QUE0057,Queechy Lake,2014,Uninvaded
+1310QUE0057,Queechy Lake,2017,Uninvaded
+1401ANA0251,Lake Anawanda,2016,Uninvaded
+1401ANA0251,Lake Anawanda,2015,Uninvaded
+1401ANA0251,Lake Anawanda,2012,Uninvaded
+1401ANA0251,Lake Anawanda,2013,Uninvaded
+1401ANA0251,Lake Anawanda,2014,Uninvaded
+1401ANA0251,Lake Anawanda,2017,Uninvaded
+1201ECA0697,East Caroga Lake,2016,Uninvaded
+1201ECA0697,East Caroga Lake,2015,Uninvaded
+1201ECA0697,East Caroga Lake,2012,Uninvaded
+1201ECA0697,East Caroga Lake,2013,Uninvaded
+1201ECA0697,East Caroga Lake,2014,Uninvaded
+1201ECA0697,East Caroga Lake,2017,Uninvaded
+1201GAL0563,Galway Lake,2016,Uninvaded
+1201GAL0563,Galway Lake,2015,Uninvaded
+1201GAL0563,Galway Lake,2012,Uninvaded
+1201GAL0563,Galway Lake,2013,Uninvaded
+1201GAL0563,Galway Lake,2014,Uninvaded
+1201GAL0563,Galway Lake,2017,Uninvaded
+0602GEN0088,Geneganslet Lake,2016,Uninvaded
+0602GEN0088,Geneganslet Lake,2015,Uninvaded
+0602GEN0088,Geneganslet Lake,2012,Uninvaded
+0602GEN0088,Geneganslet Lake,2013,Uninvaded
+0602GEN0088,Geneganslet Lake,2014,Uninvaded
+0303LOR0009,Lorton Lake,2016,Uninvaded
+0303LOR0009,Lorton Lake,2013,Uninvaded
+0303LOR0009,Lorton Lake,2015,Uninvaded
+0303LOR0009,Lorton Lake,2012,Uninvaded
+0303LOR0009,Lorton Lake,2017,Uninvaded
+0602ECH0081,Echo Lake,2015,Uninvaded
+0602ECH0081,Echo Lake,2012,Uninvaded
+0602ECH0081,Echo Lake,2013,Uninvaded
+0602ECH0081,Echo Lake,2014,Uninvaded
+1104FRI0365,Friends Lake,2016,Uninvaded
+1104FRI0365,Friends Lake,2012,Uninvaded
+1104FRI0365,Friends Lake,2013,Uninvaded
+1104FRI0365,Friends Lake,2014,Uninvaded
+1104FRI0365,Friends Lake,2017,Uninvaded
+0703KAS0109,Kasoag Lake,2015,Uninvaded
+0703KAS0109,Kasoag Lake,2012,Uninvaded
+0703KAS0109,Kasoag Lake,2013,Uninvaded
+0703KAS0109,Kasoag Lake,2014,Uninvaded
+0703KAS0109,Kasoag Lake,2017,Uninvaded
+1004PLA0254,Lake Placid,2016,Uninvaded
+1004PLA0254,Lake Placid,2015,Uninvaded
+1004PLA0254,Lake Placid,2013,Uninvaded
+1004PLA0254,Lake Placid,2014,Uninvaded
+1004PLA0254,Lake Placid,2012,Uninvaded
+1004PLA0254,Lake Placid,2017,Uninvaded
+1310ROU0080,Round Pond,2016,Uninvaded
+1310ROU0080,Round Pond,2015,Uninvaded
+1310ROU0080,Round Pond,2013,Uninvaded
+1310ROU0080,Round Pond,2014,Uninvaded
+1310ROU0080,Round Pond,2017,Uninvaded
+0602WAR0094,Warn Lake,2016,Uninvaded
+0602WAR0094,Warn Lake,2015,Uninvaded
+0602WAR0094,Warn Lake,2012,Uninvaded
+0602WAR0094,Warn Lake,2013,Uninvaded
+0602WAR0094,Warn Lake,2014,Uninvaded
+0602WAR0094,Warn Lake,2017,Uninvaded
+0801OTT0926,Otter Lake,2016,Uninvaded
+0801OTT0926,Otter Lake,2015,Uninvaded
+0801OTT0926,Otter Lake,2013,Uninvaded
+0801OTT0926,Otter Lake,2017,Uninvaded
+1201PEC0686,Peck Lake,2016,Uninvaded
+1201PEC0686,Peck Lake,2015,Uninvaded
+1201PEC0686,Peck Lake,2012,Uninvaded
+1201PEC0686,Peck Lake,2014,Uninvaded
+1201PEC0686,Peck Lake,2017,Uninvaded
+0703PAN0094,Panther Lake,2016,Uninvaded
+0703PAN0094,Panther Lake,2015,Uninvaded
+0703PAN0094,Panther Lake,2014,Uninvaded
+0703PAN0094,Panther Lake,2017,Uninvaded
+1104HUN0131,Hunt Lake,2016,Uninvaded
+1104HUN0131,Hunt Lake,2013,Uninvaded
+1104HUN0131,Hunt Lake,2015,Uninvaded
+1104HUN0131,Hunt Lake,2012,Uninvaded
+1104HUN0131,Hunt Lake,2017,Uninvaded
+1104JEN0130,Jenny Lake,2016,Uninvaded
+1104JEN0130,Jenny Lake,2012,Uninvaded
+1104JEN0130,Jenny Lake,2013,Uninvaded
+1104JEN0130,Jenny Lake,2014,Uninvaded
+1104JEN0130,Jenny Lake,2017,Uninvaded
+1301IND0167,Indian Lake,2016,Uninvaded
+1301IND0167,Indian Lake,2013,Uninvaded
+1301IND0167,Indian Lake,2014,Uninvaded
+1301IND0167,Indian Lake,2015,Uninvaded
+1301IND0167,Indian Lake,2017,Uninvaded
+0904SIL0351,Silver Lake,2016,Uninvaded
+0904SIL0351,Silver Lake,2014,Uninvaded
+0904SIL0351,Silver Lake,2015,Uninvaded
+0904SIL0351,Silver Lake,2012,Uninvaded
+0904SIL0351,Silver Lake,2013,Uninvaded
+0904SIL0351,Silver Lake,2017,Uninvaded
+1004AUG0213,Augur Lake,2016,Uninvaded
+1004AUG0213,Augur Lake,2015,Uninvaded
+1004AUG0213,Augur Lake,2012,Uninvaded
+1004AUG0213,Augur Lake,2013,Uninvaded
+1004AUG0213,Augur Lake,2014,Uninvaded
+1004AUG0213,Augur Lake,2017,Uninvaded
+1301BUR0386C,Burden Third Lake,2016,Uninvaded
+1301BUR0386C,Burden Third Lake,2015,Uninvaded
+1301BUR0386C,Burden Third Lake,2013,Uninvaded
+1301BUR0386C,Burden Third Lake,2014,Uninvaded
+1301BUR0386C,Burden Third Lake,2017,Uninvaded
+1005HAD0432,Hadlock Pond ,2015,Uninvaded
+1005HAD0432,Hadlock Pond ,2012,Uninvaded
+1005HAD0432,Hadlock Pond ,2013,Uninvaded
+1005HAD0432,Hadlock Pond ,2014,Uninvaded
+1005HAD0432,Hadlock Pond ,2017,Uninvaded
+1104EFN0129,Efner Lake,2016,Uninvaded
+1104EFN0129,Efner Lake,2015,Uninvaded
+1104EFN0129,Efner Lake,2012,Uninvaded
+1104EFN0129,Efner Lake,2013,Uninvaded
+1104EFN0129,Efner Lake,2014,Uninvaded
+1004LIN0315,Lincoln Pond,2016,Uninvaded
+1004LIN0315,Lincoln Pond,2015,Uninvaded
+1004LIN0315,Lincoln Pond,2013,Uninvaded
+1004LIN0315,Lincoln Pond,2014,Uninvaded
+0404LOO0079,Loon Lake,2016,Uninvaded
+0404LOO0079,Loon Lake,2015,Uninvaded
+0404LOO0079,Loon Lake,2013,Uninvaded
+0404LOO0079,Loon Lake,2014,Uninvaded
+0404LOO0079,Loon Lake,2012,Uninvaded
+0404LOO0079,Loon Lake,2017,Uninvaded
+0906MIL0055,Millsite Lake,2016,Uninvaded
+0906MIL0055,Millsite Lake,2015,Uninvaded
+0906MIL0055,Millsite Lake,2012,Uninvaded
+0906MIL0055,Millsite Lake,2013,Uninvaded
+0906MIL0055,Millsite Lake,2014,Uninvaded
+0906MIL0055,Millsite Lake,2017,Uninvaded
+1301SEP0826,Sepasco Lake,2016,Uninvaded
+1301SEP0826,Sepasco Lake,2015,Uninvaded
+1301SEP0826,Sepasco Lake,2013,Uninvaded
+1301SEP0826,Sepasco Lake,2014,Uninvaded
+1301SEP0826,Sepasco Lake,2017,Uninvaded
+1401SOM0268,Somerset Lake,2016,Uninvaded
+1401SOM0268,Somerset Lake,2015,Uninvaded
+1401SOM0268,Somerset Lake,2012,Uninvaded
+1401SOM0268,Somerset Lake,2013,Uninvaded
+1401SOM0268,Somerset Lake,2014,Uninvaded
+1401SOM0268,Somerset Lake,2017,Uninvaded
+1310SPR0081,Spring Lake,2016,Uninvaded
+1310SPR0081,Spring Lake,2015,Uninvaded
+1310SPR0081,Spring Lake,2014,Uninvaded
+1310SPR0081,Spring Lake,2017,Uninvaded
+0906OTH0009,Lake of the Woods,2016,Uninvaded
+0906OTH0009,Lake of the Woods,2015,Uninvaded
+0906OTH0009,Lake of the Woods,2017,Uninvaded
+1005SUN0440,Lake Sunnyside,2012,Uninvaded
+1005SUN0440,Lake Sunnyside,2013,Uninvaded
+1005SUN0440,Lake Sunnyside,2014,Uninvaded
+1005SUN0440,Lake Sunnyside,2015,Uninvaded
+1005SUN0440,Lake Sunnyside,2017,Uninvaded
+0601CHE0213,Chenango Lake,2016,Uninvaded
+0601CHE0213,Chenango Lake,2015,Uninvaded
+0601CHE0213,Chenango Lake,2012,Uninvaded
+0601CHE0213,Chenango Lake,2013,Uninvaded
+0601CHE0213,Chenango Lake,2014,Uninvaded
+0601CHE0213,Chenango Lake,2017,Uninvaded
+1104EAG0438,Eagle Lake,2016,Uninvaded
+1104EAG0438,Eagle Lake,2015,Uninvaded
+1104EAG0438,Eagle Lake,2012,Uninvaded
+1104EAG0438,Eagle Lake,2013,Uninvaded
+1104EAG0438,Eagle Lake,2014,Uninvaded
+1104EAG0438,Eagle Lake,2017,Uninvaded
+1201PLE0745,Pleasant Lake,2016,Uninvaded
+1201PLE0745,Pleasant Lake,2014,Uninvaded
+1201PLE0745,Pleasant Lake,2015,Uninvaded
+1201PLE0745,Pleasant Lake,2013,Uninvaded
+1201PLE0745,Pleasant Lake,2017,Uninvaded
+0801BRA0689,Brantingham Lake,2016,Uninvaded
+0801BRA0689,Brantingham Lake,2012,Uninvaded
+0801BRA0689,Brantingham Lake,2013,Uninvaded
+0801BRA0689,Brantingham Lake,2014,Uninvaded
+0801BRA0689,Brantingham Lake,2017,Uninvaded
+1201CAN0717,Canada Lake,2016,Uninvaded
+1201CAN0717,Canada Lake,2015,Uninvaded
+1201CAN0717,Canada Lake,2012,Uninvaded
+1201CAN0717,Canada Lake,2013,Uninvaded
+1201CAN0717,Canada Lake,2014,Uninvaded
+1201CAN0717,Canada Lake,2017,Uninvaded
+1104FOR0340,Forest Lake,2016,Uninvaded
+1104FOR0340,Forest Lake,2015,Uninvaded
+1104FOR0340,Forest Lake,2012,Uninvaded
+1104FOR0340,Forest Lake,2013,Uninvaded
+1104FOR0340,Forest Lake,2014,Uninvaded
+1104FOR0340,Forest Lake,2017,Uninvaded
+1102TAC1129,Taconic Lake,2016,Uninvaded
+1102TAC1129,Taconic Lake,2015,Uninvaded
+1102TAC1129,Taconic Lake,2013,Uninvaded
+1102TAC1129,Taconic Lake,2014,Uninvaded
+1102TAC1129,Taconic Lake,2017,Uninvaded
+1301FOR0441,Lake Forest,2016,Uninvaded
+1301FOR0441,Lake Forest,2015,Uninvaded
+1301FOR0441,Lake Forest,2013,Uninvaded
+1301FOR0441,Lake Forest,2014,Uninvaded
+1301FOR0441,Lake Forest,2017,Uninvaded
+0601GUI0188,Guilford Lake,2016,Uninvaded
+0601GUI0188,Guilford Lake,2015,Uninvaded
+0601GUI0188,Guilford Lake,2012,Uninvaded
+0601GUI0188,Guilford Lake,2014,Uninvaded
+0601GUI0188,Guilford Lake,2013,Uninvaded
+0601GUI0188,Guilford Lake,2017,Uninvaded
+0906GRA0051,Grass Lake,2016,Uninvaded
+0906GRA0051,Grass Lake,2013,Uninvaded
+0906GRA0051,Grass Lake,2015,Uninvaded
+0906GRA0051,Grass Lake,2014,Uninvaded
+0906GRA0051,Grass Lake,2017,Uninvaded
+1402YAN0021,Yankee Lake,2014,Uninvaded
+1402YAN0021,Yankee Lake,2015,Uninvaded
+1402YAN0021,Yankee Lake,2013,Uninvaded
+1402YAN0021,Yankee Lake,2017,Uninvaded
+1701LLO0708,Little Long Pond,2016,Uninvaded
+1701LLO0708,Little Long Pond,2014,Uninvaded
+1701LLO0708,Little Long Pond,2015,Uninvaded
+1701LLO0708,Little Long Pond,2012,Uninvaded
+1701LLO0708,Little Long Pond,2013,Uninvaded
+1701LLO0708,Little Long Pond,2017,Uninvaded
+0602SON0072,Song Lake,2016,Uninvaded
+0602SON0072,Song Lake,2015,Uninvaded
+0602SON0072,Song Lake,2012,Uninvaded
+0602SON0072,Song Lake,2014,Uninvaded
+0602SON0072,Song Lake,2013,Uninvaded
+0602SON0072,Song Lake,2017,Uninvaded
+0902EAG0083,Eagle Pond,2016,Uninvaded
+0902EAG0083,Eagle Pond,2015,Uninvaded
+0902EAG0083,Eagle Pond,2012,Uninvaded
+0902EAG0083,Eagle Pond,2013,Uninvaded
+0902EAG0083,Eagle Pond,2017,Uninvaded
+1501TUX1007,Tuxedo Lake,2016,Uninvaded
+1501TUX1007,Tuxedo Lake,2015,Uninvaded
+1501TUX1007,Tuxedo Lake,2012,Uninvaded
+1501TUX1007,Tuxedo Lake,2014,Uninvaded
+1501TUX1007,Tuxedo Lake,2017,Uninvaded
+0602ULI0067,Upper Little York Lake,2016,Invaded
+0602ULI0067,Upper Little York Lake,2013,Invaded
+0602ULI0067,Upper Little York Lake,2015,Invaded
+0602ULI0067,Upper Little York Lake,2012,Uninvaded
+0602ULI0067,Upper Little York Lake,2017,Invaded
+1301ROA0183B,Roaring Brook Lake,2016,Uninvaded
+1301ROA0183B,Roaring Brook Lake,2015,Uninvaded
+1301ROA0183B,Roaring Brook Lake,2012,Uninvaded
+1301ROA0183B,Roaring Brook Lake,2013,Uninvaded
+1301ROA0183B,Roaring Brook Lake,2017,Uninvaded
+0602TUL0068,Tully Lake,2016,Uninvaded
+0602TUL0068,Tully Lake,2015,Uninvaded
+0602TUL0068,Tully Lake,2012,Uninvaded
+0602TUL0068,Tully Lake,2013,Uninvaded
+0602TUL0068,Tully Lake,2014,Uninvaded
+0602TUL0068,Tully Lake,2017,Uninvaded
+1301BOW0444,Big Bowman Pond,2016,Uninvaded
+1301BOW0444,Big Bowman Pond,2015,Uninvaded
+1301BOW0444,Big Bowman Pond,2013,Uninvaded
+1301BOW0444,Big Bowman Pond,2014,Uninvaded
+1301BOW0444,Big Bowman Pond,2017,Uninvaded
+1104PLE0313,Lake Pleasant,2016,Uninvaded
+1104PLE0313,Lake Pleasant,2015,Uninvaded
+1104PLE0313,Lake Pleasant,2014,Uninvaded
+1401DEV0174,Lake Devenoge,2016,Uninvaded
+1401DEV0174,Lake Devenoge,2015,Uninvaded
+1401DEV0174,Lake Devenoge,2014,Uninvaded
+1401DEV0174,Lake Devenoge,2017,Uninvaded
+0403RUS0146,Rushford Lake,2016,Uninvaded
+0403RUS0146,Rushford Lake,2017,Uninvaded

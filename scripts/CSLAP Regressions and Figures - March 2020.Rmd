@@ -1,0 +1,276 @@
+---
+title: "Ch 2 Regressions"
+author: "Victoria_Field"
+date: "10/17/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(RColorBrewer)
+```
+
+```{r}
+CSLAP<-read.csv("CSLAP_Dataset_09232019.csv", header=TRUE)
+OWCSLAP<-CSLAP[CSLAP$Info_Type == "OW",]
+
+redCSLAP<-read.csv("redCSLAP.csv")
+redCSLAP$Sample_Year<-as.factor(redCSLAP$Sample_Year)
+redCSLAP$Sample_Month<-as.factor(redCSLAP$Sample_Month)
+redOWCSLAP<-redCSLAP[redCSLAP$Info_Type == "OW",]
+```
+
+#Global Dataset
+```{r}
+#Extracting average annual TP for each lake 
+library(plyr)
+avgTP<-ddply(OWCSLAP, c("LakeID", "Sample_Year"), summarize, 
+             Mean = mean(TP_mg.L, na.rm=TRUE))
+```
+
+```{r}
+#Extracting relevant bloom data 
+Bloom<-CSLAP[, c(2, 3, 4, 42, 9, 18, 22, 34, 35, 36, 37)]
+#Taking only rows where there is a value for microcystin
+Bloom<-Bloom[!is.na(Bloom$ESF_Microcystin_ug.L),]
+```
+
+```{r}
+#Which rows are missing TP values? 
+noTPbloom<-Bloom[is.na(Bloom$TP_mg.L),]
+#merge average TP to noTPbloom data frame 
+avgTPbloom<-merge(noTPbloom, avgTP, by=c("LakeID", "Sample_Year"), all.x=TRUE, all.y=FALSE)
+#remove original TP column, and re-name the average TP column 
+avgTPbloom<-avgTPbloom[, c(1:5, 7:12)]
+colnames(avgTPbloom)[colnames(avgTPbloom)=="Mean"] <- "TP_mg.L"
+#re-order columns 
+avgTPbloom<-avgTPbloom[, c(1,2,3,4,11,5,6,7,8,9,10)]
+```
+
+```{r}
+#combine two data frames
+hadTP<-Bloom[!is.na(Bloom$TP_mg.L),]
+completeBloom<-rbind(hadTP, avgTPbloom)
+```
+
+```{r}
+#split by invasion status 
+invadedBlooms<-completeBloom[completeBloom$Dreissenids == "Invaded",]
+uninvadedBlooms<-completeBloom[completeBloom$Dreissenids == "Uninvaded",]
+```
+
+##TP and Microcystin
+```{r}
+#create linear models 
+invaded.lm<-lm(log(invadedBlooms$ESF_Microcystin_ug.L+1)~log(invadedBlooms$TP_mg.L+1))
+uninvaded.lm<-lm(log(uninvadedBlooms$ESF_Microcystin_ug.L+1)~log(uninvadedBlooms$TP_mg.L+1))
+summary(invaded.lm)
+summary(uninvaded.lm)
+invaded.lm.sum<-summary(invaded.lm)
+uninvaded.lm.sum<-summary(uninvaded.lm)
+```
+
+```{r}
+library(car) 
+r2<-uninvaded.lm.sum$adj.r.squared 
+
+my.p<-uninvaded.lm.sum$coefficients[2,4]
+
+rp<-vector('expression',2) #create empty vector item 
+rp[1] = substitute(expression(italic(R)^2 == MYVALUE), 
+		list(MYVALUE = format(r2,dig=3)))[2] 
+#fills first vector expression with our formatted r-squared value
+rp[2] = substitute(expression(italic(p) == MYOTHERVALUE), 
+		list(MYOTHERVALUE = format(my.p, digits = 3)))[2] 
+#fills second vector expression with our formatted p-value ]
+png("TP-microReg.png")
+
+plot(log(ESF_Microcystin_ug.L+1)~log(TP_mg.L+1), invadedBlooms, pch=16, col=1,   
+     xlab="Total Phosphorus (mg/L)", ylab="Microcystin (μg/L)", xlim=c(0.0, 0.055))
+points(log(ESF_Microcystin_ug.L+1)~log(TP_mg.L+1), uninvadedBlooms, pch=19, col="#0073C2FF")
+regLine(uninvaded.lm, col="#0073C2FF", lwd=2)
+legend(x=0.04, y=4, legend = rp, bty = 'n')
+legend('topright', legend=c("Invaded", "Uninvaded"), col=c(1,"#0073C2FF"), pch=c(16, 19))
+
+dev.off()
+```
+
+```{r}
+ggplot(completeBloom, aes(x=TP_mg.L, y=ESF_Microcystin_ug.L, color=Dreissenids, shape=Dreissenids)) +
+  geom_point(cex=2) + 
+  geom_smooth(data=subset(completeBloom, Dreissenids == "Uninvaded" ),
+               aes(x=TP_mg.L, y=ESF_Microcystin_ug.L, color=Dreissenids), method=lm, se=FALSE)+
+  theme_classic()+ 
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10', breaks=c(1,100, 10000)) + 
+  scale_color_grey()
+  
+
+ggsave("Fig 2-1 Global.png")
+```
+
+##Chlorophyll and Microcystin 
+```{r}
+#create linear models
+
+chl.invaded.lm<-lm(log(invadedBlooms$ESF_Microcystin_ug.L+1)~log(invadedBlooms$ESF_Chl.a_ug.L+1))
+chl.uninvaded.lm<-lm(log(uninvadedBlooms$ESF_Microcystin_ug.L+1)~log(uninvadedBlooms$ESF_Chl.a_ug.L+1))
+summary(chl.invaded.lm)
+summary(chl.uninvaded.lm)
+chl.invaded.lm.sum<-summary(chl.invaded.lm)
+chl.uninvaded.lm.sum<-summary(chl.uninvaded.lm)
+```
+
+```{r}
+library(car) 
+chl.r2<-chl.uninvaded.lm.sum$adj.r.squared 
+
+chl.my.p<-chl.uninvaded.lm.sum$coefficients[2,4]
+
+chl.rp<-vector('expression',2) #create empty vector item 
+chl.rp[1] = substitute(expression(italic(R)^2 == MYVALUE), 
+		list(MYVALUE = format(chl.r2,dig=3)))[2] 
+#fills first vector expression with our formatted r-squared value
+chl.rp[2] = substitute(expression(italic(p) == MYOTHERVALUE), 
+		list(MYOTHERVALUE = format(chl.my.p, digits = 3)))[2] 
+#fills second vector expression with our formatted p-value ]
+
+chl.r2.2<-chl.invaded.lm.sum$adj.r.squared 
+
+chl.my.p.2<-chl.invaded.lm.sum$coefficients[2,4]
+
+chl.rp.2<-vector('expression',2) #create empty vector item 
+chl.rp.2[1] = substitute(expression(italic(R)^2 == MYVALUE), 
+		list(MYVALUE = format(chl.r2.2,dig=3)))[2] 
+#fills first vector expression with our formatted r-squared value
+chl.rp.2[2] = substitute(expression(italic(p) == MYOTHERVALUE), 
+		list(MYOTHERVALUE = format(chl.my.p.2, digits = 3)))[2] 
+#fills second vector expression with our formatted p-value ]
+
+png("Chl-microReg.png")
+plot(log(ESF_Microcystin_ug.L+1)~log(ESF_Chl.a_ug.L+1), invadedBlooms, pch=16, col=1,   
+     xlab="Total Chlorophyll (μg/L)", ylab="Microcystin (μg/L)")
+points(log(ESF_Microcystin_ug.L+1)~log(ESF_Chl.a_ug.L+1), uninvadedBlooms, pch=19, col="#0073C2FF")
+regLine(chl.uninvaded.lm, col="#0073C2FF", lwd=2)
+regLine(chl.invaded.lm, col=1, lwd=2)
+legend(x=5, y=2, legend = chl.rp, bty = 'n', cex=0.8)
+legend(x=2, y=3.1, legend = chl.rp.2, cex=0.8, bty="n")
+legend('topleft', legend=c("Invaded", "Uninvaded"), col=c(1,"#0073C2FF"), pch=c(16, 19))
+
+dev.off()
+
+```
+
+```{r}
+ggplot(completeBloom, aes(x=ESF_Chl.a_ug.L, y=ESF_Microcystin_ug.L, color=Dreissenids, shape=Dreissenids)) +
+  geom_point(cex=2) + 
+  geom_smooth(method=lm, se=FALSE)+
+  theme_classic()+ 
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10') + 
+  scale_color_grey()
+  
+
+ggsave("Fig 2-2 Global.png")
+```
+
+##True color 
+```{r}
+ggplot(OWCSLAP, aes(x=Dreissenids, y=log(True_Color_PTU)))+
+  geom_boxplot()+
+  theme_minimal() 
+```
+
+#Reduced Dataset
+```{r}
+#Extracting average annual TP for each lake 
+library(plyr)
+redavgTP<-ddply(redOWCSLAP, c("LakeID", "Sample_Year"), summarize, 
+             Mean = mean(TP_mg.L, na.rm=TRUE))
+```
+
+```{r}
+#Extracting relevant bloom data 
+redBloom<-redCSLAP[, c(2,4,5,10,19,23,35,36,37,38,43)]
+#Taking only rows where there is a value for microcystin
+redBloom<-redBloom[!is.na(redBloom$ESF_Microcystin_ug.L),]
+```
+
+```{r}
+#Which rows are missing TP values? 
+rednoTPbloom<-redBloom[is.na(redBloom$TP_mg.L),]
+#merge average TP to noTPbloom data frame 
+redavgTPbloom<-merge(rednoTPbloom, redavgTP, by=c("LakeID", "Sample_Year"), all.x=TRUE, all.y=FALSE)
+#remove original TP column, and re-name the average TP column 
+redavgTPbloom<-redavgTPbloom[, c(1:4, 6:12)]
+colnames(redavgTPbloom)[colnames(redavgTPbloom)=="Mean"] <- "TP_mg.L"
+#re-order columns 
+redavgTPbloom<-redavgTPbloom[, c(1,2,3,4,11,5,6,7,8,9,10)]
+```
+
+```{r}
+#combine two data frames
+redhadTP<-redBloom[!is.na(redBloom$TP_mg.L),]
+redcompleteBloom<-rbind(redhadTP, redavgTPbloom)
+colnames(redcompleteBloom)[11]<-"Dreissenids"
+```
+
+```{r}
+#split by invasion status 
+redinvadedBlooms<-redcompleteBloom[redcompleteBloom$Dreissenids == "Invaded",]
+reduninvadedBlooms<-redcompleteBloom[redcompleteBloom$Dreissenids == "Uninvaded",]
+```
+
+##TP and Microcystin
+```{r}
+#create linear models 
+red.invaded.lm<-lm(log(redinvadedBlooms$ESF_Microcystin_ug.L+1)~log(redinvadedBlooms$TP_mg.L+1))
+red.uninvaded.lm<-lm(log(reduninvadedBlooms$ESF_Microcystin_ug.L+1)~log(reduninvadedBlooms$TP_mg.L+1))
+summary(red.invaded.lm)
+summary(red.uninvaded.lm)
+red.invaded.lm.sum<-summary(red.invaded.lm)
+red.uninvaded.lm.sum<-summary(red.uninvaded.lm)
+```
+
+
+```{r}
+ggplot(redcompleteBloom, aes(x=TP_mg.L, y=ESF_Microcystin_ug.L, color=Dreissenids, shape=Dreissenids)) +
+  geom_point(cex=2) + 
+  geom_smooth(data=subset(redcompleteBloom, Dreissenids == "Uninvaded" ),
+               aes(x=TP_mg.L, y=ESF_Microcystin_ug.L, color=Dreissenids), method=lm, se=FALSE)+
+  theme_classic()+ 
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10', breaks=c(1,100, 10000)) + 
+  scale_color_grey()
+  
+
+ggsave("Fig 2-1 Reduced.png")
+```
+
+##Chlorophyll and Microcystin 
+```{r}
+#create linear models
+
+red.chl.invaded.lm<-lm(log(redinvadedBlooms$ESF_Microcystin_ug.L+1)~log(redinvadedBlooms$ESF_Chl.a_ug.L+1))
+red.chl.uninvaded.lm<-lm(log(reduninvadedBlooms$ESF_Microcystin_ug.L+1)~log(reduninvadedBlooms$ESF_Chl.a_ug.L+1))
+summary(red.chl.invaded.lm)
+summary(red.chl.uninvaded.lm)
+red.chl.invaded.lm.sum<-summary(red.chl.invaded.lm)
+red.chl.uninvaded.lm.sum<-summary(red.chl.uninvaded.lm)
+```
+
+
+
+```{r}
+ggplot(redcompleteBloom, aes(x=ESF_Chl.a_ug.L, y=ESF_Microcystin_ug.L, color=Dreissenids, shape=Dreissenids)) +
+  geom_point(cex=2) + 
+  geom_smooth(method=lm, se=FALSE)+
+  theme_classic()+ 
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10') + 
+  scale_color_grey()
+  
+
+ggsave("Fig 2-2 Reduced.png")
+```
