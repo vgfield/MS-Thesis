@@ -28,6 +28,7 @@ library(lme4)
 require(lmerTest)
 library(lattice)
 library(predictmeans)
+library(ggpubr)
 ```
 
 # Data Cleaning
@@ -235,9 +236,9 @@ colnames(redCSLAP)[51] <- "Dreissenids"
 ## Global Dataset 
 
 ### Data Summaries
-```{r}
+```{r, variable summaries}
 #melt data frame by Dreissenids and Info_type so we can summarize all our variables of interest in one code chunk 
-CSLAP2<-CSLAP[, c(8, 13, 17, 21, 22, 28, 32, 36, 37, 38, 50:54)]
+CSLAP2<-CSLAP[, c(8, 13, 17, 21, 22, 28, 30, 32, 36, 37, 38, 50:54)]
 meltCSLAP <- melt(CSLAP2, id=c("Dreissenids", "Info_Type"), na.rm=TRUE)
 
 #summarize each variable split by invasion status and info
@@ -255,6 +256,50 @@ VariableSummaries[c(1, 6:11,15:18, 20:22, 27, 38:34, 47:50, 55:57),]
 #Write this dataframe to a csv so the values can be easily put into a word document 
 write.csv(VariableSummaries, "./output_data/VariableSummaries-June2020.csv")
 ```
+
+```{r, lake characteristic summaries}
+#melt Lake List data frame by Dreissenids so we can summarize all our variables of interest in one code chunk 
+meltLakes <- melt(Lake_List[,c(2:6)], id=c("LakeID", "Dreissenids"), na.rm=TRUE)
+
+#summarize each variable split by invasion status and info
+LakeSummaries<-ddply(meltLakes, c("Dreissenids", "variable"), summarize,
+      Mean = mean(value, na.rm=TRUE), 
+      Median = median(value, na.rm=TRUE), 
+      Min = min(value, na.rm=TRUE), 
+      Max = max(value, na.rm=TRUE), 
+      SD = sd(value, na.rm=TRUE))
+LakeSummaries
+
+#Write this dataframe to a csv so the values can be easily put into a word document 
+write.csv(LakeSummaries, "./output_data/LakeSummaries.csv")
+```
+
+```{r, trophic characteristics}
+#melt data frame by Dreissenids and Info_type so we can summarize all our variables of interest in one code chunk 
+CSLAP3<-CSLAP[CSLAP$Info_Type == "OW", c(1, 13, 17, 32)]
+CSLAP3$TP <- CSLAP3$TP*1000
+meltTrophic <- melt(CSLAP3, id="Lake_Name", na.rm=TRUE)
+
+#summarize each variable split by invasion status and info
+TrophicSummaries<-ddply(meltTrophic, c("Lake_Name","variable"), summarize,
+      Mean = mean(value, na.rm=TRUE), 
+      Median = median(value, na.rm=TRUE), 
+      Min = min(value, na.rm=TRUE), 
+      Max = max(value, na.rm=TRUE), 
+      SD = sd(value, na.rm=TRUE))
+TrophicSummaries
+
+write.csv(TrophicSummaries, "./output_data/TrophicSummaries.csv")
+
+TrophicMean<-reshape(TrophicSummaries[, c(1:3, 7)], idvar="Lake_Name", timevar="variable", times=c("Mean", "SD"), direction = "wide")
+
+
+colnames(TrophicMean) <- c("Lake_Name", "Secchi_Mean", "Secchi_SD", "TP_Mean", "TP_SD", "Chlorophyll-a_Mean", "Chlorophyll-a_SD")
+TrophicMean<-TrophicMean[,c(1,4, 5, 6, 7, 2, 3)]
+
+write.csv(TrophicMean, "./output_data/TrophicMeans.csv")
+```
+
 
 ### Histograms
 
@@ -403,11 +448,11 @@ ggplot(Lake_List, aes(x=Percent_Ag)) +
 ### Data Summaries
 ```{r}
 #melt data frame by Dreissenids and Info_type so we can summarize all our variables of interest in one code chunk 
-redCSLAP2<-redCSLAP[, c(8, 13, 17, 21, 22, 28, 32, 36, 37, 38, 50:54)]
+redCSLAP2<-redCSLAP[, c(8, 13, 17, 21, 22, 28, 30, 32, 36, 37, 38, 50:54)]
 redmeltCSLAP <- melt(redCSLAP2, id=c("Dreissenids", "Info_Type"), na.rm=TRUE)
 
 #summarize each variable split by invasion status and info
-redVariableSummaries<-ddply(meltCSLAP, c("Dreissenids", "Info_Type", "variable"), summarize,
+redVariableSummaries<-ddply(redmeltCSLAP, c("Dreissenids", "Info_Type", "variable"), summarize,
       Mean = mean(value, na.rm=TRUE), 
       Median = median(value, na.rm=TRUE), 
       Min = min(value, na.rm=TRUE), 
@@ -417,6 +462,23 @@ redVariableSummaries
 
 #Write this dataframe to a csv so the values can be easily put into a word document 
 write.csv(redVariableSummaries, "./output_data/redVariableSummaries-June2020.csv")
+```
+
+```{r}
+#melt Lake List data frame by Dreissenids so we can summarize all our variables of interest in one code chunk 
+redmeltLakes <- melt(df_match[,c(1:4,6)], id=c("LakeID", "Dreissenids"), na.rm=TRUE)
+
+#summarize each variable split by invasion status and info
+redLakeSummaries<-ddply(redmeltLakes, c("Dreissenids", "variable"), summarize,
+      Mean = mean(value, na.rm=TRUE), 
+      Median = median(value, na.rm=TRUE), 
+      Min = min(value, na.rm=TRUE), 
+      Max = max(value, na.rm=TRUE), 
+      SD = sd(value, na.rm=TRUE))
+redLakeSummaries
+
+#Write this dataframe to a csv so the values can be easily put into a word document 
+write.csv(redLakeSummaries, "./output_data/redLakeSummaries.csv")
 ```
 
 ### Histograms
@@ -1014,7 +1076,7 @@ plot(redSBChl)
 qqPlot(resid(redSBChl))
 ```
 
-## Shoreline Bloom Microcystin
+### Shoreline Bloom Microcystin
 
 Same as for the global dataset, we need to use average yearly TN:TP values
 ```{r, warning=FALSE}
@@ -1040,6 +1102,18 @@ summary(redSBmicro)
 plot(redSBmicro)
 
 qqPlot(resid(redSBmicro))
+```
+
+### Open Water Microcystin 
+
+```{r}
+redOWmicro<-lmer(log(ESF_Microcystin) ~ Dreissenids + TN_TP + log(CA.SA) + Mean_Depth_m + Percent_A  + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redOWmicro)
+
+plot(redOWmicro)
+
+qqPlot(resid(redOWmicro))
 ```
 
 # HABs Frequency 
