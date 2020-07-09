@@ -29,6 +29,7 @@ require(lmerTest)
 library(lattice)
 library(predictmeans)
 library(ggpubr)
+library(ggpmisc)
 ```
 
 # Data Cleaning
@@ -626,6 +627,8 @@ t.test(Secchi_Depth_m~Dreissenids, data=hisCSLAP)
 Secchi.lmer<-lmer(Secchi_Depth_m ~ Dreissenids + (1|LakeID), data=hisCSLAP)
 
 summary(Secchi.lmer)
+
+plot(Secchi.lmer)
 ```
 
 ```{r}
@@ -776,6 +779,8 @@ t.test(TN_TP ~ Dreissenids, data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
 OWTN_TP.lmer<-lmer(log(TN_TP) ~ Dreissenids + (1|LakeID), data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
 
 summary(OWTN_TP.lmer)
+
+plot(OWTN_TP.lmer)
 ```
 
 ### Open Water True Color
@@ -794,6 +799,8 @@ t.test(Calcium_mg.L ~ Dreissenids, data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
 Calc.lmer<-lmer(Calcium_mg.L ~ Dreissenids + (1|LakeID), data=hisCSLAP[hisCSLAP$Info_Type == "OW",])
 
 summary(Calc.lmer)
+
+plot(Calc.lmer)
 ```
 
 ## Boxplots
@@ -1107,7 +1114,7 @@ qqPlot(resid(redSBmicro))
 ### Open Water Microcystin 
 
 ```{r}
-redOWmicro<-lmer(log(ESF_Microcystin) ~ Dreissenids + TN_TP + log(CA.SA) + Mean_Depth_m + Percent_A  + (1|Sample_Year:LakeID), data=redOWCSLAP)
+redOWmicro<-lmer(log(ESF_Microcystin) ~ Dreissenids + TN_TP + log(CA.SA) + Mean_Depth_m + Percent_Ag  + (1|Sample_Year:LakeID), data=redOWCSLAP)
 
 summary(redOWmicro)
 
@@ -1192,6 +1199,7 @@ testResiduals(res)
 
 testZeroInflation(res)
 ```
+
 ## Reduced Dataset: All Blooms
 
 ```{r}
@@ -1441,17 +1449,34 @@ summary(OWuninvaded.lm)
 
 OWinvaded.lm.sum<-summary(OWinvaded.lm)
 OWuninvaded.lm.sum<-summary(OWuninvaded.lm)
+
+#extract R2 and p-value 
+r2<-OWinvaded.lm.sum$adj.r.squared
+my.p<-OWinvaded.lm.sum$coefficients[2,4]
+
+rp<-vector("expression", 2)
+rp[1] <- substitute(expression(italic(R)^2 == MYVALUE), 
+        list(MYVALUE = format(r2,dig=3)))[2]
+rp[2] = substitute(expression(italic(p) == MYOTHERVALUE), 
+        list(MYOTHERVALUE = format(my.p, digits = 2)))[2]
 ```
 
 ```{r}
 ggplot(OWcompleteBloom, aes(x=TP, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
   geom_point(cex=2) + 
-  geom_smooth(data=subset(OWcompleteBloom, Dreissenids == "Invaded" ),
-               aes(x=TP, y=ESF_Microcystin, color=Dreissenids), method=lm, se=FALSE)+
+  geom_smooth(data=subset(OWcompleteBloom, Dreissenids == "Invaded"),
+              aes(x=TP, y=ESF_Microcystin, color=Dreissenids), method="lm", se=FALSE)+
   theme_classic()+ 
   scale_x_continuous(trans='log10') +
-  scale_y_continuous(trans='log10', breaks=c(1,100, 10000)) +
-  scale_color_grey()
+  scale_y_continuous(trans='log10', breaks=c(1, 10, 100, 10000)) +
+  scale_color_grey()+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=14), 
+        axis.title.x = element_text(size=14), legend.position = "top", legend.title = element_blank(), legend.text = element_text(size=12))+
+  ylab("log open water microcystin (\u03bcg/L)")+
+  xlab("log TP (mg/L)")+
+  annotate(geom="text", x=.0075, y=10, label= "log microcystin = 8.6 + 4.24( log TP)")+
+  annotate(geom="text", x=.005, y=7, label=rp[1], parse=TRUE)+
+  annotate(geom="text", x=.005, y=5, label=rp[2], parse=TRUE)
   
 
 ggsave("./output_figures/Fig 2-1 Global OW.png")
@@ -1476,7 +1501,11 @@ ggplot(SBcompleteBloom, aes(x=TP, y=ESF_Microcystin, color=Dreissenids, shape=Dr
   theme_classic()+ 
   scale_x_continuous(trans='log10') +
   scale_y_continuous(trans='log10', breaks=c(1,100, 10000)) +
-  scale_color_grey()
+  scale_color_grey()+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=14), 
+        axis.title.x = element_text(size=14), legend.position = "top", legend.title = element_blank(), legend.text = element_text(size=12))+
+  ylab("log shoreline bloom microcystin (\u03bcg/L)")+
+  xlab("log TP (mg/L)")
   
 
 ggsave("./output_figures/Fig 2-1 Global SB.png")
@@ -1502,8 +1531,12 @@ ggplot(OWcompleteBloom, aes(x=TN_TP, y=ESF_Microcystin, color=Dreissenids, shape
   geom_point(cex=2) +
   theme_classic()+ 
   scale_x_continuous(trans='log10') +
-  scale_y_continuous(trans='log10', breaks=c(1,100, 10000)) +
-  scale_color_grey()
+  scale_y_continuous(trans='log10', breaks=c(1, 10,100, 10000)) +
+  scale_color_grey()+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=14), 
+        axis.title.x = element_text(size=14), legend.position = "top", legend.title = element_blank(), legend.text=element_text(size=12))+
+  ylab("log open water microcystin (\u03bcg/L)")+
+  xlab("log TN:TP")
   
 
 ggsave("./output_figures/Fig 2-3 Global OW.png")
@@ -1528,7 +1561,11 @@ ggplot(SBcompleteBloom, aes(x=TN_TP, y=ESF_Microcystin, color=Dreissenids, shape
   theme_classic()+ 
   scale_x_continuous(trans='log10') +
   scale_y_continuous(trans='log10', breaks=c(1,100, 10000)) +
-  scale_color_grey()
+  scale_color_grey()+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=14), 
+        axis.title.x = element_text(size=14), legend.position = "top", legend.title = element_blank(), legend.text=element_text(size=12))+
+  ylab("log shoreline bloom microcystin (\u03bcg/L)")+
+  xlab("log TN:TP")
   
 
 ggsave("./output_figures/Fig 2-3 Global SB.png")
@@ -1539,8 +1576,8 @@ ggsave("./output_figures/Fig 2-3 Global SB.png")
 #### Open Water
 ```{r}
 #create linear models
-OWchl.invaded.lm<-lm(log(OWinvadedBlooms$ESF_Microcystin+.1)~log(OWinvadedBlooms$ESF_FP_Chl.a+.1))
-OWchl.uninvaded.lm<-lm(log(OWuninvadedBlooms$ESF_Microcystin+.1)~log(OWuninvadedBlooms$ESF_FP_Chl.a+.1))
+OWchl.invaded.lm<-lm(log(OWinvadedBlooms$ESF_Microcystin+.1)~log(OWinvadedBlooms$Extracted_Chl.a+.1))
+OWchl.uninvaded.lm<-lm(log(OWuninvadedBlooms$ESF_Microcystin+.1)~log(OWuninvadedBlooms$Extracted_Chl.a+.1))
 
 summary(OWchl.invaded.lm)
 summary(OWchl.uninvaded.lm)
@@ -1550,13 +1587,16 @@ OWchl.uninvaded.lm.sum<-summary(OWchl.uninvaded.lm)
 ```
 
 ```{r}
-ggplot(OWcompleteBloom, aes(x=ESF_FP_Chl.a, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
+ggplot(OWcompleteBloom, aes(x=Extracted_Chl.a, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
   geom_point(cex=2) + 
-  geom_smooth(method=lm, se=FALSE)+
   theme_classic()+ 
   scale_x_continuous(trans='log10') +
   scale_y_continuous(trans='log10') + 
-  scale_color_grey()
+  scale_color_grey()+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=14), 
+        axis.title.x = element_text(size=14), legend.position = "top", legend.title = element_blank(), legend.text=element_text(size=12))+
+  ylab("log open water microcystin (\u03bcg/L)")+
+  xlab("log extracted chlorophyll-a (\u03bcg/L)")
   
 
 ggsave("./output_figures/Fig 2-2 Global OW.png")
@@ -1577,147 +1617,17 @@ SBchl.uninvaded.lm.sum<-summary(SBchl.uninvaded.lm)
 
 ```{r}
 ggplot(SBcompleteBloom, aes(x=ESF_FP_Chl.a, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
-  geom_point(cex=2) + 
-  geom_smooth(method=lm, se=FALSE)+
+  geom_point(cex=2) +
   theme_classic()+ 
-  scale_x_continuous(trans='log10') +
+  scale_x_continuous(trans='log10', breaks=c(10,100,1000,10000)) +
   scale_y_continuous(trans='log10') + 
-  scale_color_grey()
+  scale_color_grey()+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=14), 
+        axis.title.x = element_text(size=14), legend.position = "top", legend.title = element_blank(), legend.text=element_text(size=12))+
+  ylab("log shoreline bloom microcystin (\u03bcg/L)")+
+  xlab("log fluoroprobe chlorophyll-a (\u03bcg/L)")
   
 
 ggsave("./output_figures/Fig 2-2 Global SB.png")
 ```
 
-## Reduced Dataset
-```{r}
-#Extracting average annual TP for each lake 
-library(plyr)
-redavgTP<-ddply(redOWCSLAP, c("LakeID", "Sample_Year"), summarize, 
-             Mean = mean(TP, na.rm=TRUE))
-
-#Extracting average annual TNTP for each lake 
-redavgTNTP<-ddply(redOWCSLAP, c("LakeID", "Sample_Year"), summarize, 
-             Mean = mean(TN_TP, na.rm=TRUE))
-
-#Taking only rows where there is a value for microcystin
-redBloom<-redCSLAP[!is.na(redCSLAP$ESF_Microcystin),]
-
-#Which rows are missing TP values? 
-rednoTPbloom<-redBloom[is.na(redBloom$TP),]
-
-#Which rows are missing TNTP values? 
-rednoTNTPbloom<-redBloom[is.na(redBloom$TN_TP),]
-
-#merge average TP to noTPbloom data frame 
-redavgTPbloom<-merge(rednoTPbloom, redavgTP, by=c("LakeID", "Sample_Year"), all.x=TRUE, all.y=FALSE)
-
-#merge average TN:TP to noTPbloom data frame 
-redavgTNTPbloom<-merge(rednoTNTPbloom, redavgTNTP, by=c("LakeID", "Sample_Year"), all.x=TRUE, all.y=FALSE)
-
-#remove original TP column, and re-name the average TP column 
-redavgTPbloom<-redavgTPbloom[, c(1:16, 18:56)]
-colnames(redavgTPbloom)[colnames(redavgTPbloom)=="Mean"] <- "TP"
-
-#remove original TNTP column, and re-name the average TNTP column 
-redavgTNTPbloom<-redavgTNTPbloom[, c(1:49, 51:56)]
-colnames(redavgTNTPbloom)[colnames(redavgTNTPbloom)=="Mean"] <- "TN_TP"
-
-#re-order columns 
-redavgTPbloom<-redavgTPbloom[, c(1:16,55,17:54)]
-
-#re-order columns 
-redavgTNTPbloom<-redavgTNTPbloom[, c(1:49,55,50:54)]
-
-#combine two data frames
-redhadTP<-redBloom[!is.na(redBloom$TP),]
-redcompleteBloom<-rbind(redhadTP, redavgTPbloom)
-redcompleteBloom<-rbind(redcompleteBloom, redavgTNTPbloom)
-
-#split by invasion status 
-redinvadedBlooms<-redcompleteBloom[redcompleteBloom$Dreissenids == "Invaded",]
-reduninvadedBlooms<-redcompleteBloom[redcompleteBloom$Dreissenids == "Uninvaded",]
-```
-
-
-### TP and Microcystin
-```{r}
-#create linear models 
-red.invaded.lm<-lm(log(redinvadedBlooms$ESF_Microcystin+.1)~log(redinvadedBlooms$TP+.1))
-red.uninvaded.lm<-lm(log(reduninvadedBlooms$ESF_Microcystin+.1)~log(reduninvadedBlooms$TP+.1))
-
-summary(red.invaded.lm)
-summary(red.uninvaded.lm)
-
-red.invaded.lm.sum<-summary(red.invaded.lm)
-red.uninvaded.lm.sum<-summary(red.uninvaded.lm)
-```
-
-```{r}
-ggplot(redcompleteBloom, aes(x=TP, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
-  geom_point(cex=2) + 
-  geom_smooth(data=subset(redcompleteBloom, Dreissenids == "Uninvaded" ),
-               aes(x=TP, y=ESF_Microcystin, color=Dreissenids), method=lm, se=FALSE)+
-  theme_classic()+ 
-  scale_x_continuous(trans='log10') +
-  scale_y_continuous(trans='log10', breaks=c(1,100, 10000)) + 
-  scale_color_grey()
-  
-
-ggsave("./output_data/Fig 2-1 Reduced.png")
-```
-
-### TN:TP and Microcystin
-
-```{r}
-#create linear models 
-redTNTP_invaded.lm<-lm(log(redinvadedBlooms$ESF_Microcystin+.1)~log(redinvadedBlooms$TN_TP+.1))
-redTNTP_uninvaded.lm<-lm(log(reduninvadedBlooms$ESF_Microcystin+.1)~log(reduninvadedBlooms$TN_TP+.1))
-
-summary(redTNTP_invaded.lm)
-summary(redTNTP_uninvaded.lm)
-
-redTNTP_invaded.lm.sum<-summary(redTNTP_invaded.lm)
-redTNTP_uninvaded.lm.sum<-summary(redTNTP_uninvaded.lm)
-```
-
-```{r}
-ggplot(redcompleteBloom, aes(x=TN_TP, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
-  geom_point(cex=2) + 
-  geom_smooth(data=subset(redcompleteBloom, Dreissenids == "Invaded" ),
-               aes(x=TN_TP, y=ESF_Microcystin, color=Dreissenids), method=lm, se=FALSE)+
-  theme_classic()+ 
-  scale_x_continuous(trans='log10') +
-  scale_y_continuous(trans='log10', breaks=c(1,100, 10000)) +
-  scale_color_grey()
-  
-
-ggsave("./output_figures/Fig 2-3 Reduced.png")
-```
-
-### Chlorophyll and Microcystin 
-```{r}
-#create linear models
-red.chl.invaded.lm<-lm(log(redinvadedBlooms$ESF_Microcystin+.1)~log(redinvadedBlooms$ESF_FP_Chl.a+.1))
-red.chl.uninvaded.lm<-lm(log(reduninvadedBlooms$ESF_Microcystin+.1)~log(reduninvadedBlooms$ESF_FP_Chl+.1))
-
-summary(red.chl.invaded.lm)
-summary(red.chl.uninvaded.lm)
-
-red.chl.invaded.lm.sum<-summary(red.chl.invaded.lm)
-red.chl.uninvaded.lm.sum<-summary(red.chl.uninvaded.lm)
-```
-
-```{r}
-ggplot(redcompleteBloom, aes(x=ESF_FP_Chl.a, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
-  geom_point(cex=2) + 
-  geom_smooth(method=lm, se=FALSE)+
-  theme_classic()+ 
-  scale_x_continuous(trans='log10') +
-  scale_y_continuous(trans='log10') + 
-  scale_color_grey()
-  
-
-ggsave("./output_figures/Fig 2-2 Reduced.png")
-```
-
-Adding to check GitHub
