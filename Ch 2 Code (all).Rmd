@@ -1338,11 +1338,11 @@ redU.HTBloom$Lake_Name<-droplevels(redU.HTBloom$Lake_Name)
 
 ```{r}
 #separate by invaded and uninvaded
-redI.HTblooms<-as.data.frame(table(redI.SBHTBloom[,c("Lake_Name","Sample_Year", "HTBloom")]))
+redI.HTblooms<-as.data.frame(table(redI.HTBloom[,c("Lake_Name","Sample_Year", "HTBloom")]))
 redI.HTblooms$Dreissenids<-rep("Invaded", 40)
 
-redU.HTblooms<-as.data.frame(table(redU.SBHTBloom[,c("Lake_Name","Sample_Year", "HTBloom")]))
-redU.HTblooms$Dreissenids<-rep("Uninvaded", 30)
+redU.HTblooms<-as.data.frame(table(redU.HTBloom[,c("Lake_Name","Sample_Year", "HTBloom")]))
+redU.HTblooms$Dreissenids<-rep("Uninvaded", 35)
 
 #Make into one dataframe for analysis
 redHTblooms<-rbind(redI.HTblooms, redU.HTblooms)
