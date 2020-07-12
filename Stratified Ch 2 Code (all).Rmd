@@ -1,0 +1,1404 @@
+---
+title: "Stratified Ch 2 Code (All)"
+author: "Victoria Field"
+date: "6/9/2020"
+output:
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
+    toc_depth: 4
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dataMaid)
+library(dplyr)
+library(tidyverse)
+library(Matching)
+library(MatchIt)
+library(reshape2)
+library(plyr)
+library(ggplot2)
+library(DHARMa)
+library(magrittr)
+library(pryr)
+library(MASS)
+library(car)
+library(lme4)
+require(lmerTest)
+library(lattice)
+library(predictmeans)
+library(ggpubr)
+library(ggpmisc)
+library(sjPlot)
+```
+
+# Data Cleaning
+```{r}
+getwd()
+CSLAP<-read.csv("./raw_data/CSLAP 2012-2017 EDI Original.csv", na.strings = c("", " ", "NA", "NaN"))
+```
+
+```{r}
+str(CSLAP)
+```
+
+Based on output from `str()` and prior knowledge of the data, to clean this dataset I need to:
+
+-Change column names and remove units 
+
+-Identify duplicate levels of `Lake_Name`, we know there is a duplicate because we have 73 levels of the unique factor `LakeID` and 72 levels of `Lake_Name`
+
+-Split `Sample_Date` variable into two more columns: `Sample_Year` and `Sample_Month`
+
+-For each lake, identify how many years the observations span (If less than 3, remove from dataset)
+
+-Clean levels of `Data_Provider` to one level ("CSL")
+
+-Clean levels of `Info_Type`
+
+-Remove character strings from `ESF_Microcystin_ug.L`
+
+-Read in a merge values for Mean Depth, Catchment Area to Surface Area Ratio, Dreissenid Status By Year, and %Agricultural Cover
+
+
+## Change column names 
+```{r}
+colnames(CSLAP)<-c("LakeID", "Lake_Name", "Proj_Code", "Sample_Name", "Sample_Date", "Data_Provider", "Info_Type", "LocationID", "Latitude", "Longitude", "Sample_Depth", "Secchi_Depth", "DO", "Bottom_DO","pH", "TP", "TDP", "Conductance", "Temp_Air", "Temp_Water", "TN", "TDN" , "Ammonia", "NOx", "Nitrate", "Nitrite", "True_Color", "Chloride", "Calcium", "Chl.a_FP", "Extracted_Chl.a", "UFI_SBK_FP_Chl.a", "UFI_SBK_FP_BGA", "UFI_SBK_Microcystin", "ESF_FP_Chl.a","ESF_FP_BGA", "ESF_Microcystin", "HAB_Status", "Alkalinity_CaCO3", "DOC", "UV_254", "Iron", "Manganese", "Arsenic", "QA", "QB", "QC")
+```
+
+## Change duplicate `Lake_Name`:"Forest Lake" and remove white space from `Lake_Name`: "Hadlock Pond"
+
+We want the lake with `LakeID`:"1301FOR0441" to be called "Lake Forest" instead of "Forest Lake". And we need to change "Hadlock Pond " to "Hadlock Pond"
+```{r}
+CSLAP$Lake_Name<-as.character(CSLAP$Lake_Name) #first, make this column a character vector instead of factor
+CSLAP[CSLAP$LakeID == "1301FOR0441", 2] <- rep("Lake Forest", 40) #then, replace the specified cells with "Lake Forest"
+CSLAP[CSLAP$LakeID == "1005HAD0432", 2] <- rep("Hadlock Pond", 78) #then, replace the specified cells with "Hadlock Pond"
+CSLAP$Lake_Name<-as.factor(CSLAP$Lake_Name) #last, change the column back to factor vector
+```
+
+## Create new columns for `Sample_Year` and `Sample_Month`
+```{r}
+#extract sample year and month 
+CSLAP$Sample_Year<-as.numeric(format(as.Date(CSLAP$Sample_Date, format="%m/%d/%Y"),"%Y"))
+CSLAP$Sample_Month<-as.numeric(format(as.Date(CSLAP$Sample_Date, format="%m/%d/%Y"),"%m"))
+```
+
+## For each lake, check how many years they were enrolled in CSLAP. Remove lakes with less than 3 years 
+```{r}
+table(CSLAP$LakeID, CSLAP$Sample_Year)
+
+CSLAP$LakeID<-as.character(CSLAP$LakeID) #first, change to a character vector
+
+CSLAP<-CSLAP[CSLAP$LakeID != "0403RUS0146", ]
+CSLAP<-CSLAP[CSLAP$LakeID != "0704CAN0286", ] 
+CSLAP<-CSLAP[CSLAP$LakeID != "0801EFF0426", ] 
+CSLAP<-CSLAP[CSLAP$LakeID != "1104PAR0432", ] 
+CSLAP<-CSLAP[CSLAP$LakeID != "0602PLY0107", ] #Plymouth reservoir will also be removed because it is eutrophic
+
+CSLAP$LakeID<-as.factor(CSLAP$LakeID)
+CSLAP$LakeID<-droplevels(CSLAP$LakeID)
+levels(CSLAP$LakeID)
+```
+
+## Change levels of `Data_Provider`
+```{r}
+levels(CSLAP$Data_Provider)
+CSLAP$Data_Provider<-as.character(CSLAP$Data_Provider)
+CSLAP[CSLAP$Data_Provider == "csl", 6] <- "CSL"
+CSLAP$Data_Provider<-as.factor(CSLAP$Data_Provider)
+CSLAP$Data_Provider<-droplevels(CSLAP$Data_Provider)
+levels(CSLAP$Data_Provider)
+```
+
+## Change levels of `Info_Type`
+```{r}
+levels(CSLAP$Info_Type)
+CSLAP$Info_Type<-as.character(CSLAP$Info_Type)
+CSLAP[CSLAP$Info_Type == "ow", 7] <- "OW"
+CSLAP[CSLAP$Info_Type == "sb", 7] <- "SB"
+CSLAP$Info_Type<-as.factor(CSLAP$Info_Type)
+CSLAP$Info_Type<-droplevels(CSLAP$Info_Type)
+levels(CSLAP$Info_Type)
+```
+
+## Clean `ESF_Microcystin` vector
+```{r}
+# ESF_Microcystin should be a numeric column,but it's listed as factor. We need to remove character values from this column 
+
+CSLAP$ESF_Microcystin[CSLAP$ESF_Microcystin == "ND"] <- NA
+CSLAP$ESF_Microcystin[CSLAP$ESF_Microcystin == "no filter"] <- NA
+
+CSLAP$ESF_Microcystin <- as.numeric(as.character(CSLAP$ESF_Microcystin))
+
+str(CSLAP$ESF_Microcystin)
+```
+
+## Add TN:TP column 
+```{r}
+CSLAP$TN_TP<-CSLAP$TN/CSLAP$TP
+```
+
+## Check for missing values 
+```{r}
+result <- lapply(CSLAP, identifyMissing)
+result
+```
+
+```{r}
+CSLAP$TN_TP[CSLAP$TN_TP == "Inf"] <- NA
+CSLAP$TN_TP[CSLAP$TN_TP == "NaN"] <- NA
+
+result <- lapply(CSLAP, identifyMissing)
+result
+```
+
+## Read in and merge mean depth, CA:SA, dreissenids by year, and %ag
+```{r}
+Dreissenids<-read.csv("./raw_data/Dreissenid_Status_byYear.csv", header=TRUE)
+Dreissenids$Lake_Name<-as.character(Dreissenids$Lake_Name) 
+Dreissenids[200:204,2] <- rep("Hadlock Pond",5)
+Dreissenids$Lake_Name<-as.factor(Dreissenids$Lake_Name)
+
+CASA_MD<-read.csv("./raw_data/CASA_Mean_Depth.csv", header=TRUE)
+CASA_MD$Lake_Name<-as.character(CASA_MD$Lake_Name) 
+CASA_MD[27,2] <- "Hadlock Pond"
+CASA_MD$Lake_Name<-as.factor(CASA_MD$Lake_Name)
+
+Ag<-read.csv("./raw_data/Percent Ag Cover.csv", header=TRUE)
+Ag$Lake_Name<-as.character(Ag$Lake_Name) 
+Ag[27,1] <- "Hadlock Pond"
+Ag$Lake_Name<-as.factor(Ag$Lake_Name)
+
+CSLAP<-merge(CSLAP, Dreissenids, by=c("LakeID", "Lake_Name", "Sample_Year"), all.x =TRUE)
+CSLAP<-merge(CSLAP, CASA_MD, by=c("LakeID", "Lake_Name"), all.x=TRUE)
+CSLAP<-merge(CSLAP, Ag, by="Lake_Name", all.x=TRUE)
+```
+
+```{r, stratified}
+#which lakes don't have bottom samples? We want to remove those
+
+Strat <- CSLAP[CSLAP$Info_Type == "BS", ]
+Strat$LakeID <- droplevels(Strat$LakeID) #54 lakes have BS samples, meaning 14 don't
+StratLake<-as.data.frame(levels(Strat$LakeID))
+colnames(StratLake)[1]<- "LakeID"
+
+#which 14 lakes are not stratified? 
+noStrat<- as.character(levels(CSLAP$LakeID)[!(levels(CSLAP$LakeID) %in% levels(Strat$LakeID))])
+
+#remove these lakes from CSLAP df 
+CSLAP<-merge(CSLAP, StratLake)
+CSLAP$LakeID <- droplevels(CSLAP$LakeID)
+```
+
+Now we have a clean, full dataset of stratified lakes. Next, we need to create the reduced dataset using propensity score matching
+
+## Create Reduced Dataset 
+
+### Read in lake data
+```{r}
+Lake_List<-read.csv("./raw_data/LakeList.csv", header=TRUE)
+Lake_List<-merge(Lake_List, Ag, by="Lake_Name", na.rm=FALSE, all.x=TRUE) #merge %ag
+Lake_List<-Lake_List[Lake_List$LakeID != "0403RUS0146",] #Remove Lake Rushford
+
+Lake_List<-merge(Lake_List, StratLake) #remove non-stratified lakes
+```
+
+### Propensity Score Estimation 
+
+```{r}
+m_ps <- glm(Dreissenids ~ Mean_Depth_m + CA.SA + Percent_Ag,
+            family = binomial(), data = Lake_List)
+summary(m_ps)
+```
+
+```{r}
+prs_df <- data.frame(pr_score = predict(m_ps, type = "response"),
+                     Dreissenids = m_ps$model$Dreissenids)
+head(prs_df)
+```
+
+```{r}
+labs <- paste("Invasion Status:", c("Invaded", "Uninvaded"))
+prs_df %>%
+  mutate(Dreissenids = ifelse(Dreissenids == 1, labs[1], labs[2])) %>%
+  ggplot(aes(x = pr_score)) +
+  geom_histogram(color = "white") +
+  facet_wrap(~Dreissenids) +
+  xlab("Probability of being invaded") +
+  theme_bw()
+```
+
+```{r}
+lakes_nomiss <- Lake_List %>%  # MatchIt does not allow missing values
+  dplyr::select(CA.SA, Mean_Depth_m, Percent_Ag, LakeID, Lake_Name, Dreissenids) %>%
+  na.omit()
+
+mod_match <- matchit(Dreissenids ~ CA.SA + Mean_Depth_m + Percent_Ag,
+                     method = "nearest", data = lakes_nomiss)
+
+df_match <- match.data(mod_match)
+```
+
+## Extract observations that come from lakes in the reduced set to create new, clean reduced dataset
+
+```{r}
+redLakes<-df_match[,c(4,6)]
+
+redCSLAP<-merge(CSLAP, redLakes, by="LakeID")
+
+redCSLAP<-redCSLAP[,1:54] #removed redundant Dreissenids column
+
+colnames(redCSLAP)[51] <- "Dreissenids"
+```
+
+# Data Summaries and Histograms 
+
+## Global Dataset 
+
+### Data Summaries
+```{r, variable summaries}
+#melt data frame by Dreissenids and Info_type so we can summarize all our variables of interest in one code chunk 
+CSLAP2<-CSLAP[, c(8, 13, 17, 21, 22, 28, 30, 32, 36, 37, 38, 50:54)]
+meltCSLAP <- melt(CSLAP2, id=c("Dreissenids", "Info_Type"), na.rm=TRUE)
+
+#summarize each variable split by invasion status and info
+VariableSummaries<-ddply(meltCSLAP, c("Dreissenids", "Info_Type", "variable"), summarize,
+      Mean = mean(value, na.rm=TRUE), 
+      Median = median(value, na.rm=TRUE), 
+      Min = min(value, na.rm=TRUE), 
+      Max = max(value, na.rm=TRUE), 
+      SD = sd(value, na.rm=TRUE))
+VariableSummaries
+
+#I will pull out only the values that I need to make copying to a word document "easy"
+VariableSummaries[c(1, 6:11,15:18, 20:22, 27, 38:34, 47:50, 55:57),]
+
+#Write this dataframe to a csv so the values can be easily put into a word document 
+write.csv(VariableSummaries, "./output_data/StratifiedVariableSummaries-June2020.csv")
+```
+
+```{r, lake characteristic summaries}
+#melt Lake List data frame by Dreissenids so we can summarize all our variables of interest in one code chunk 
+Lake_List$LakeID<-as.factor(Lake_List$LakeID)
+meltLakes <- melt(Lake_List[,c(1,3:6)], id=c("LakeID", "Dreissenids"), na.rm=TRUE)
+
+#summarize each variable split by invasion status and info
+LakeSummaries<-ddply(meltLakes, c("Dreissenids", "variable"), summarize,
+      Mean = mean(value, na.rm=TRUE), 
+      Median = median(value, na.rm=TRUE), 
+      Min = min(value, na.rm=TRUE), 
+      Max = max(value, na.rm=TRUE), 
+      SD = sd(value, na.rm=TRUE))
+LakeSummaries
+
+#Write this dataframe to a csv so the values can be easily put into a word document 
+write.csv(LakeSummaries, "./output_data/StratifiedLakeSummaries.csv")
+```
+
+```{r, trophic characteristics}
+#melt data frame by Dreissenids and Info_type so we can summarize all our variables of interest in one code chunk 
+CSLAP3<-CSLAP[CSLAP$Info_Type == "OW", c(2, 13, 17, 32)]
+CSLAP3$TP <- CSLAP3$TP*1000
+meltTrophic <- melt(CSLAP3, id="Lake_Name", na.rm=TRUE)
+
+#summarize each variable split by invasion status and info
+TrophicSummaries<-ddply(meltTrophic, c("Lake_Name","variable"), summarize,
+      Mean = mean(value, na.rm=TRUE), 
+      Median = median(value, na.rm=TRUE), 
+      Min = min(value, na.rm=TRUE), 
+      Max = max(value, na.rm=TRUE), 
+      SD = sd(value, na.rm=TRUE))
+TrophicSummaries
+
+write.csv(TrophicSummaries, "./output_data/StratifiedTrophicSummaries.csv")
+
+TrophicMean<-reshape(TrophicSummaries[, c(1:3, 7)], idvar="Lake_Name", timevar="variable", times=c("Mean", "SD"), direction = "wide")
+
+
+colnames(TrophicMean) <- c("Lake_Name", "Secchi_Mean", "Secchi_SD", "TP_Mean", "TP_SD", "Chlorophyll-a_Mean", "Chlorophyll-a_SD")
+TrophicMean<-TrophicMean[,c(1,4, 5, 6, 7, 2, 3)]
+
+write.csv(TrophicMean, "./output_data/StratifiedTrophicMeans.csv")
+```
+
+
+### Histograms
+
+First we will split our dataset based on information type
+```{r}
+OWCSLAP<-CSLAP[CSLAP$Info_Type == "OW",]
+BSCSLAP<-CSLAP[CSLAP$Info_Type == "BS",]
+SBCSLAP<-CSLAP[CSLAP$Info_Type == "SB",]
+
+redOWCSLAP<-redCSLAP[redCSLAP$Info_Type == "OW",]
+redBSCSLAP<-redCSLAP[redCSLAP$Info_Type == "BS",]
+redBSCSLAP<-redCSLAP[redCSLAP$Info_Type == "SB",]
+```
+
+#### Open Water TP
+```{r}
+ggplot(OWCSLAP, aes(x=TP)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Open water TP", x="TP (mg/L)", y="Frequency")
+```
+
+#### Open Water TN
+```{r}
+ggplot(OWCSLAP, aes(x=TN)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Open water TN", x="TN (mg/L)", y="Frequency")
+```
+
+#### Open Water TN:TP
+```{r}
+ggplot(OWCSLAP, aes(x=TN_TP)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Open water TN:TP", x="TN:TP", y="Frequency")+
+  scale_x_continuous(limits=c(0,100))
+```
+
+#### Open Water Chlorophyll-a
+```{r}
+ggplot(OWCSLAP, aes(x=Extracted_Chl.a)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Open water chlorophyll a", x="Chlorophyll a (ug/L)", y="Frequency")
+```
+
+#### Secchi Depth
+```{r}
+ggplot(OWCSLAP, aes(x=Secchi_Depth)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Secchi Depth", x="Secchi depth (m)", y="Frequency")
+```
+
+#### True Color
+```{r}
+ggplot(OWCSLAP, aes(x=True_Color)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="True Color", x="True color (PTU)", y="Frequency")
+```
+
+#### Shoreline Bloom Chlorophyll
+```{r}
+ggplot(SBCSLAP, aes(x=ESF_FP_Chl.a)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Shoreline Bloom Chlorophyll a", x="Chlorophyll a (ug/L)", y="Frequency")
+```
+
+#### Shoreline Bloom Microcystin
+```{r}
+ggplot(SBCSLAP, aes(x=ESF_Microcystin)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Shoreline Bloom Microcystin", x="Microcystin (ug/L)", y="Frequency")
+```
+
+#### Open Water Microcystin
+```{r}
+ggplot(OWCSLAP, aes(x=ESF_Microcystin)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Open Water Microcystin", x="Microcystin (ug/L)", y="Frequency")
+```
+
+#### Mean Depth 
+```{r}
+#Quickly change factor level labels for Dreissenids
+Lake_List[Lake_List$Dreissenids == 0, 5] <- rep("Uninvaded", 46)
+Lake_List[Lake_List$Dreissenids == 1, 5] <- rep("Invaded", 8)
+```
+
+```{r}
+ggplot(Lake_List, aes(x=Mean_Depth_m)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Mean Depth", x="Mean depth (m)", y="Frequency")
+```
+
+#### CA:SA
+
+```{r}
+ggplot(Lake_List, aes(x=CA.SA)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Catchment Area to Surface Area Ratio", x="CA:SA", y="Frequency")
+```
+
+#### Percent Agriculture
+
+```{r}
+ggplot(Lake_List, aes(x=Percent_Ag)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Percent Agricultural Cover in Watershed", x="Agriculture (%)", y="Frequency")
+```
+
+## Reduced Dataset 
+
+### Data Summaries
+```{r}
+#melt data frame by Dreissenids and Info_type so we can summarize all our variables of interest in one code chunk 
+redCSLAP2<-redCSLAP[, c(8, 13, 17, 21, 22, 28, 30, 32, 36, 37, 38, 50:54)]
+redmeltCSLAP <- melt(redCSLAP2, id=c("Dreissenids", "Info_Type"), na.rm=TRUE)
+
+#summarize each variable split by invasion status and info
+redVariableSummaries<-ddply(redmeltCSLAP, c("Dreissenids", "Info_Type", "variable"), summarize,
+      Mean = mean(value, na.rm=TRUE), 
+      Median = median(value, na.rm=TRUE), 
+      Min = min(value, na.rm=TRUE), 
+      Max = max(value, na.rm=TRUE), 
+      SD = sd(value, na.rm=TRUE))
+redVariableSummaries
+
+#Write this dataframe to a csv so the values can be easily put into a word document 
+write.csv(redVariableSummaries, "./output_data/StratifiedredVariableSummaries.csv")
+```
+
+```{r}
+#melt Lake List data frame by Dreissenids so we can summarize all our variables of interest in one code chunk 
+redmeltLakes <- melt(df_match[,c(1:4,6)], id=c("LakeID", "Dreissenids"), na.rm=TRUE)
+
+#summarize each variable split by invasion status and info
+redLakeSummaries<-ddply(redmeltLakes, c("Dreissenids", "variable"), summarize,
+      Mean = mean(value, na.rm=TRUE), 
+      Median = median(value, na.rm=TRUE), 
+      Min = min(value, na.rm=TRUE), 
+      Max = max(value, na.rm=TRUE), 
+      SD = sd(value, na.rm=TRUE))
+redLakeSummaries
+
+#Write this dataframe to a csv so the values can be easily put into a word document 
+write.csv(redLakeSummaries, "./output_data/StratifiedredLakeSummaries.csv")
+```
+
+### Histograms
+
+First we will split our dataset based on information type
+```{r}
+redOWCSLAP<-redCSLAP[redCSLAP$Info_Type == "OW",]
+redBSCSLAP<-redCSLAP[redCSLAP$Info_Type == "BS",]
+redSBCSLAP<-redCSLAP[redCSLAP$Info_Type == "SB",]
+```
+
+#### Open Water TP
+```{r}
+ggplot(redOWCSLAP, aes(x=TP)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Open water TP", x="TP (mg/L)", y="Frequency")
+```
+
+#### Open Water TN
+```{r}
+ggplot(redOWCSLAP, aes(x=TN)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Open water TN", x="TN (mg/L)", y="Frequency")
+```
+
+#### Open Water TN:TP
+```{r}
+ggplot(redOWCSLAP, aes(x=TN_TP)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Open water TN:TP", x="TN:TP", y="Frequency")+
+  scale_x_continuous(limits=c(0,100))
+```
+
+#### Open Water Chlorophyll-a
+```{r}
+ggplot(redOWCSLAP, aes(x=Extracted_Chl.a)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Open water chlorophyll a", x="Chlorophyll a (ug/L)", y="Frequency")
+```
+
+#### Secchi Depth
+```{r}
+ggplot(redOWCSLAP, aes(x=Secchi_Depth)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Secchi Depth", x="Secchi depth (m)", y="Frequency")
+```
+
+#### True Color
+```{r}
+ggplot(redOWCSLAP, aes(x=True_Color)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="True Color", x="True color (PTU)", y="Frequency")
+```
+
+#### Shoreline Bloom Chlorophyll
+```{r}
+ggplot(redSBCSLAP, aes(x=ESF_FP_Chl.a)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Shoreline Bloom Chlorophyll a", x="Chlorophyll a (ug/L)", y="Frequency")
+```
+
+#### Shoreline Bloom Microcystin
+```{r}
+ggplot(redSBCSLAP, aes(x=ESF_Microcystin)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Shoreline Bloom Microcystin", x="Microcystin (ug/L)", y="Frequency")
+```
+
+#### Shoreline Bloom Microcystin
+```{r}
+ggplot(redOWCSLAP, aes(x=ESF_Microcystin)) +
+  geom_histogram(position="identity", color="black", fill="white")+
+  facet_wrap(~Dreissenids)+ 
+  geom_density()+
+  theme_minimal()+
+  labs(title="Open Water Microcystin", x="Microcystin (ug/L)", y="Frequency")
+```
+
+# Mixed Effects Models
+
+## Global Dataset 
+
+### Open water TN:TP
+```{r}
+TNTP<-lmer(log(TN_TP+.01) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag +  (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=OWCSLAP)
+
+summary(TNTP)
+
+plot(TNTP)
+
+qqPlot(resid(TNTP))
+```
+
+### Bottom Sample TP
+```{r}
+BSTP<-lmer(log(TP+.01) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag +  (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=BSCSLAP)
+
+summary(BSTP)
+
+plot(BSTP)
+
+qqPlot(resid(BSTP))
+```
+
+### Open water TN
+
+Full model error: `Model failed to converge`
+
+-Remove `Sample_Month`. `Sample_Year`, `Sample_Year:LakeID` (low variance) to resolve error
+```{r}
+TN<-lmer(log(TN+.01) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag +   (1|LakeID), data=OWCSLAP)
+
+summary(TN)
+
+plot(TN)
+
+qqPlot(resid(TN))
+```
+
+### Open water chlorophyll
+```{r}
+Chl<-lmer(log(Extracted_Chl.a+.01) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag +  (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=OWCSLAP)
+
+summary(Chl)
+
+plot(Chl)
+
+qqPlot(resid(Chl))
+```
+
+### Secchi
+```{r}
+Secchi<-lmer(log(Secchi_Depth+.01) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag +  (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=OWCSLAP)
+
+summary(Secchi)
+
+plot(Secchi)
+
+qqPlot(resid(Secchi))
+```
+
+### Open Water True Color
+```{r}
+TC<-lmer(log(True_Color+.01) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag +  (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=OWCSLAP)
+
+summary(TC)
+
+plot(TC)
+
+qqPlot(resid(TC))
+```
+
+### Shoreline Bloom Chlorophyll a
+
+Full model error: `boundary (singular) fit` and `model failed to converge`
+
+Remove `Sample_Year`, `Sample_Month`, and `Sample_Year:LakeID` (low variance) to resolve
+```{r}
+SBChl<-lmer(log(ESF_FP_Chl.a+.01) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag  + (1|LakeID), data=SBCSLAP)
+
+summary(SBChl)
+
+plot(SBChl)
+
+qqPlot(resid(SBChl))
+```
+
+### Shoreline Bloom Microcystin
+
+We want to add TN:TP as a predictor (fixed effect), but these variables aren't collected with shoreline bloom data. So we will instead use the yearly average for a lake.
+```{r, warning=FALSE, message=FALSE}
+#Extracting average annual TN_TP for each lake 
+library(plyr)
+avgTNTP<-ddply(OWCSLAP, c("LakeID", "Sample_Year"), summarize, 
+             Mean = mean(TN_TP, na.rm=TRUE))
+colnames(avgTNTP)[colnames(avgTNTP)=="Mean"] <- "TN_TP"
+
+#Merge these values to the SBCSLAP df 
+SBCSLAP<-SBCSLAP[,c(1:49, 51:54)]
+SBCSLAP<-merge(SBCSLAP, avgTNTP, by=c("LakeID", "Sample_Year"), all.x=TRUE, all.y=FALSE)
+```
+
+Full model error: `boundary (singular) fit` 
+
+Remove `Sample_Month` and `Sample_Year:LakeID` to resolve
+```{r}
+SBmicro<-lmer(log(ESF_Microcystin) ~ Dreissenids + TN_TP + log(CA.SA) + Mean_Depth_m + Percent_Ag  + (1|Sample_Year) + (1|LakeID), data=SBCSLAP)
+
+summary(SBmicro)
+
+plot(SBmicro)
+
+qqPlot(resid(SBmicro))
+```
+
+### Open Water Microcystin 
+
+```{r}
+OWmicro<-lmer(log(ESF_Microcystin) ~ Dreissenids + TN_TP + log(CA.SA) + Mean_Depth_m + Percent_Ag  + (1|Sample_Year) + (1|LakeID) + (1|Sample_Month) + (1|Sample_Year:LakeID), data=OWCSLAP)
+
+summary(OWmicro)
+
+plot(OWmicro)
+
+qqPlot(resid(OWmicro))
+```
+
+
+## Reduced Dataset
+
+### Open water TN:TP
+```{r}
+redTNTP<-lmer(log(TN_TP+.01) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redTNTP)
+
+plot(redTNTP)
+
+qqPlot(resid(redTNTP))
+```
+
+### Bottom Sample TP
+```{r}
+redBSTP<-lmer(log(TP+.01) ~ Dreissenids  + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=redBSCSLAP)
+
+summary(redBSTP)
+
+plot(redBSTP)
+
+qqPlot(resid(redBSTP))
+```
+
+### Open Water Chlorophyll-a
+
+```{r}
+redChl<-lmer(log(Extracted_Chl.a+1) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|LakeID) + (1|Sample_Year) + (1|Sample_Month) + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redChl)
+
+plot(redChl)
+
+qqPlot(resid(redChl))
+```
+
+### Open Water Secchi Depth
+
+-`Sample_Year` and `Sample_Month` removed for having low variance
+```{r}
+redSecchi <- lmer(log(Secchi_Depth) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|LakeID)+ (1|Sample_Year) + (1|Sample_Month) + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redSecchi)
+
+plot(redSecchi)
+
+qqPlot(resid(redSecchi))
+```
+
+### Open Water True Color 
+
+Full model error: `Model failed to converge`
+
+Remove `Sample_Year` and `Sample_Month` (low variance) to resolve
+```{r}
+redOWTC<-lmer(True_Color ~ Dreissenids  + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|LakeID) + + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redOWTC)
+
+plot(redOWTC)
+
+qqPlot(resid(redOWTC))
+```
+
+### Shoreline Bloom Chlorophyll a 
+
+-`Sample_Year` removed for low variance
+
+```{r}
+redSBChl<-lmer(log(ESF_FP_Chl.a) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|Sample_Month) + (1|LakeID) , data=redSBCSLAP)
+
+summary(redSBChl)
+
+plot(redSBChl)
+
+qqPlot(resid(redSBChl))
+```
+
+### Shoreline Bloom Microcystin
+
+Same as for the global dataset, we need to use average yearly TN:TP values
+```{r, warning=FALSE}
+#Extracting average annual TP for each lake 
+library(plyr)
+redavgTNTP<-ddply(redOWCSLAP, c("LakeID", "Sample_Year"), summarize, 
+             Mean = mean(TN_TP, na.rm=TRUE))
+colnames(redavgTNTP)[colnames(redavgTNTP)=="Mean"] <- "TN_TP"
+
+#Merge these values to the SBCSLAP df 
+redSBCSLAP<-redSBCSLAP[,c(1:49, 51:54)]
+redSBCSLAP<-merge(redSBCSLAP, redavgTNTP, by=c("LakeID", "Sample_Year"), all.x=TRUE, all.y=FALSE)
+```
+
+Full model error: `failed to converge` 
+
+Remove `Sample_Month`, `LakeID`,  and `Sample_Year:LakeID` to resolve
+```{r}
+redSBmicro<-lmer(log(ESF_Microcystin) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + log(TN_TP)  + (1|Sample_Year)  , data=redSBCSLAP)
+
+summary(redSBmicro)
+
+plot(redSBmicro)
+
+qqPlot(resid(redSBmicro))
+```
+
+### Open Water Microcystin 
+
+```{r}
+redOWmicro<-lmer(log(ESF_Microcystin) ~ Dreissenids + TN_TP + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag  + (1|Sample_Year:LakeID), data=redOWCSLAP)
+
+summary(redOWmicro)
+
+plot(redOWmicro)
+
+qqPlot(resid(redOWmicro))
+```
+
+# HABs Frequency 
+
+```{r}
+#Global Dataset
+
+#create column based on 25 ug/L BGA guideline (from NYS DEC)
+CSLAP$Bloom <- ifelse(CSLAP$ESF_FP_BGA >=25.0, "Bloom", "No Bloom")
+CSLAP$Bloom <- as.factor(CSLAP$Bloom)
+
+#Separate based on invasion status and drop unused levels of Lake Name
+I.CSLAP<-CSLAP[CSLAP$Dreissenids == "Invaded",]
+I.CSLAP$Lake_Name<-droplevels(I.CSLAP$Lake_Name)
+
+U.CSLAP<-CSLAP[CSLAP$Dreissenids == "Uninvaded",]
+U.CSLAP$Lake_Name<-droplevels(U.CSLAP$Lake_Name)
+
+#Reduced Dataset
+
+#create column based on 25 ug/L BGA guideline (from NYS DEC)
+redCSLAP$Bloom <- ifelse(redCSLAP$ESF_FP_BGA >=25.0, "Bloom", "No Bloom")
+redCSLAP$Bloom <- as.factor(redCSLAP$Bloom)
+
+#Separate based on invasion status and drop unused levels of Lake Name
+I.redCSLAP<-redCSLAP[redCSLAP$Dreissenids == "Invaded",]
+I.redCSLAP$Lake_Name<-droplevels(I.redCSLAP$Lake_Name)
+
+U.redCSLAP<-redCSLAP[redCSLAP$Dreissenids == "Uninvaded",]
+U.redCSLAP$Lake_Name<-droplevels(U.redCSLAP$Lake_Name)
+```
+
+## Global Dataset: All Blooms
+```{r}
+table(CSLAP[, c("Bloom", "Dreissenids")])
+
+HABFreqYear<-as.data.frame(table(CSLAP[,c("Bloom","Dreissenids","Sample_Year")]))
+
+HABFreqLake<-as.data.frame(table(CSLAP[,c("Bloom","Dreissenids","Lake_Name")]))
+
+HABFreq<-as.data.frame(table(CSLAP[,c("Bloom","Dreissenids","Sample_Year", "Lake_Name")]))
+
+#separate by invaded and uninvaded
+I.blooms<-as.data.frame(table(I.CSLAP[,c("Lake_Name","Sample_Year", "Bloom")]))
+I.blooms$Dreissenids<-rep("Invaded", 96)
+
+U.blooms<-as.data.frame(table(U.CSLAP[,c("Lake_Name","Sample_Year", "Bloom")]))
+U.blooms$Dreissenids<-rep("Uninvaded", 576)
+
+#Make into one dataframe for analysis
+blooms<-rbind(I.blooms, U.blooms)
+
+#Remove 'no blooms' 
+blooms<-blooms[blooms$Bloom == "Bloom",]
+```
+
+### AOV
+```{r}
+fit<-aov(Freq ~ Dreissenids, data=blooms)
+summary(fit)
+TukeyHSD(fit)
+```
+
+### GLMER poisson 
+
+```{r}
+hist(blooms$Freq)
+
+model<-glmer(Freq ~ Dreissenids + (1|Lake_Name) + (1|Sample_Year:Lake_Name), family=poisson(link=log), data=blooms)
+summary(model)
+
+```
+
+```{r}
+res<-simulateResiduals(model)
+plot(res)
+
+testResiduals(res)
+
+testZeroInflation(res)
+```
+
+## Reduced Dataset: All Blooms
+
+```{r}
+redHABFreqYear<-as.data.frame(table(redCSLAP[,c("Bloom","Dreissenids","Sample_Year")]))
+
+##Data organization for analysis 
+
+#separate by invaded and uninvaded
+I.redblooms<-as.data.frame(table(I.redCSLAP[,c("Lake_Name","Sample_Year","Bloom")]))
+I.redblooms$Dreissenids<-rep("Invaded", 96)
+
+U.redblooms<-as.data.frame(table(U.redCSLAP[,c("Lake_Name","Sample_Year","Bloom")]))
+U.redblooms$Dreissenids<-rep("Uninvaded", 120)
+
+#Make into one dataframe for analysis
+redblooms<-rbind(I.redblooms, U.redblooms)
+
+#Remove 'no blooms' 
+redblooms<-redblooms[redblooms$Bloom == "Bloom",]
+```
+
+### AOV
+```{r}
+redfit<-aov(Freq ~ Dreissenids, data=redblooms)
+summary(redfit)
+TukeyHSD(redfit)
+```
+
+### GLMER poisson 
+
+```{r}
+hist(redblooms$Freq)
+
+redmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name) + (1|Sample_Year:Lake_Name), family=poisson(link=log), data=redblooms)
+summary(redmodel)
+```
+
+```{r}
+redres<-simulateResiduals(redmodel)
+plot(redres)
+
+testResiduals(redres)
+
+testZeroInflation(redres)
+```
+
+## Global Dataset: HT Blooms
+
+```{r}
+HTBloom<-CSLAP[which(CSLAP$Bloom == "Bloom"), ]
+
+#create df of only OW blooms, then use 10 ug/L microcystin to get HT blooms (DEC open water guideline)
+OWHTBloom<-HTBloom[HTBloom$Info_Type == "OW",]
+OWHTBloom$HTBloom <- ifelse(OWHTBloom$ESF_Microcystin >= 10.0, "HT Bloom", "No HT Bloom")
+
+#create df of only SB blooms, then use 20 ug/L microcystin to get HT blooms (DEC shoreline guideline)
+SBHTBloom<-HTBloom[HTBloom$Info_Type == "SB",]
+SBHTBloom$HTBloom <- ifelse(SBHTBloom$ESF_Microcystin >= 20.0, "HT Bloom", "No HT Bloom")
+
+#combine OW and SB dfs 
+allHTBloom<-rbind(OWHTBloom, SBHTBloom)
+
+#Separate based on invasion status and drop unused levels of Lake Name
+I.HTBloom<-allHTBloom[allHTBloom$Dreissenids == "Invaded",]
+I.HTBloom$Lake_Name<-droplevels(I.HTBloom$Lake_Name)
+
+U.HTBloom<-allHTBloom[allHTBloom$Dreissenids == "Uninvaded",]
+U.HTBloom$Lake_Name<-droplevels(U.HTBloom$Lake_Name)
+```
+
+```{r}
+#separate by invaded and uninvaded
+I.HTblooms<-as.data.frame(table(I.HTBloom[,c("Lake_Name","Sample_Year","HTBloom")]))
+I.HTblooms$Dreissenids<-rep("Invaded", 40)
+
+U.HTblooms<-as.data.frame(table(U.HTBloom[,c("Lake_Name","Sample_Year","HTBloom")]))
+U.HTblooms$Dreissenids<-rep("Uninvaded", 288)
+
+#Make into one dataframe for analysis
+HTblooms<-rbind(I.HTblooms, U.HTblooms)
+
+#Remove 'no blooms' 
+HTblooms<-HTblooms[HTblooms$HTBloom == "HT Bloom",]
+```
+
+### AOV
+```{r}
+HTfit<-aov(Freq ~ Dreissenids, data=HTblooms)
+summary(HTfit)
+TukeyHSD(HTfit)
+```
+
+### GLMER poisson 
+
+```{r}
+hist(HTblooms$Freq)
+
+HTmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name) + (1|Sample_Year:Lake_Name), family=poisson(link=log), data=HTblooms)
+summary(HTmodel)
+```
+
+```{r}
+HTres<-simulateResiduals(HTmodel)
+plot(HTres)
+
+testResiduals(HTres)
+
+testZeroInflation(HTres)
+```
+
+## Reduced Dataset: HT Blooms
+
+```{r}
+redHTBloom<-redCSLAP[which(redCSLAP$Bloom == "Bloom"), ]
+
+#create df of only OW blooms, then use 10 ug/L microcystin to get HT blooms (DEC open water guideline)
+redOWHTBloom<-redHTBloom[redHTBloom$Info_Type == "OW",]
+redOWHTBloom$HTBloom <- ifelse(redOWHTBloom$ESF_Microcystin >= 10.0, "HT Bloom", "No HT Bloom")
+
+#create df of only SB blooms, then use 20 ug/L microcystin to get HT blooms (DEC shoreline guideline)
+redSBHTBloom<-redHTBloom[redHTBloom$Info_Type == "SB",]
+redSBHTBloom$HTBloom <- ifelse(redSBHTBloom$ESF_Microcystin >= 20.0, "HT Bloom", "No HT Bloom")
+
+#combine OW and SB dfs
+redallHTBloom<-rbind(redOWHTBloom, redSBHTBloom)
+
+#Separate based on invasion status and drop unused levels of Lake Name
+redI.HTBloom<-redallHTBloom[redallHTBloom$Dreissenids == "Invaded",]
+redI.HTBloom$Lake_Name<-droplevels(redI.HTBloom$Lake_Name)
+
+redU.HTBloom<-redallHTBloom[redallHTBloom$Dreissenids == "Uninvaded",]
+redU.HTBloom$Lake_Name<-droplevels(redU.HTBloom$Lake_Name)
+```
+
+```{r}
+#separate by invaded and uninvaded
+redI.HTblooms<-as.data.frame(table(redI.HTBloom[,c("Lake_Name","Sample_Year", "HTBloom")]))
+redI.HTblooms$Dreissenids<-rep("Invaded", 40)
+
+redU.HTblooms<-as.data.frame(table(redU.HTBloom[,c("Lake_Name","Sample_Year", "HTBloom")]))
+redU.HTblooms$Dreissenids<-rep("Uninvaded", 35)
+
+#Make into one dataframe for analysis
+redHTblooms<-rbind(redI.HTblooms, redU.HTblooms)
+
+#Remove 'no blooms' 
+redHTblooms<-redHTblooms[redHTblooms$HTBloom == "HT Bloom",]
+```
+
+### AOV
+```{r}
+redHTfit<-aov(Freq ~ Dreissenids, data=redHTblooms)
+summary(redHTfit)
+TukeyHSD(redHTfit)
+```
+
+### GLMER poisson 
+
+```{r}
+hist(redHTblooms$Freq)
+
+redHTmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name) + (1|Sample_Year:Lake_Name), family=poisson(link=log), data=redHTblooms)
+summary(redHTmodel)
+```
+
+```{r}
+redHTres<-simulateResiduals(redHTmodel)
+plot(redHTres)
+
+testResiduals(redHTres)
+
+testZeroInflation(redHTres)
+```
+
+## HABS Frequency Plots 
+
+```{r}
+#change column name of HTblooms so that we can combine HTblooms with blooms
+colnames(HTblooms)[3] <- "Bloom"
+
+#combine dfs
+allblooms<-rbind(HTblooms, blooms)
+
+#remove columns where 0 is reported? 
+allposblooms<-allblooms[allblooms$Freq > 0, ]
+```
+
+```{r}
+ggplot(subset(allposblooms, Bloom == "Bloom"), aes(x=Sample_Year, y=Freq, fill=Dreissenids, color=Dreissenids))+
+  geom_boxplot()+
+  theme_minimal()+
+  scale_y_continuous(breaks= c(0,2, 4, 6, 8, 10))+
+  scale_fill_manual(values=c("#E7E7E7", "#FFFFFF"))+
+  scale_color_manual(values=c("#000000", "#717171"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+
+  labs(y= "Frequency", x = "Year")+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12))+
+  theme(axis.title.x = element_text(size=14), axis.title.y = element_text(size=14))+
+  theme(legend.title = element_text(size=14), legend.text = element_text(size=12))
+
+```
+
+```{r}
+library(RColorBrewer)
+ggplot(subset(allposblooms, Bloom == "HT Bloom"), aes(x=Sample_Year, y=Freq, color=Dreissenids, fill=Dreissenids))+
+  geom_boxplot()+
+  theme_minimal()+
+  scale_y_continuous(breaks= c(0,2, 4, 6, 8, 10))+
+  scale_fill_manual(values=c("#E7E7E7", "#FFFFFF"))+
+  scale_color_manual(values=c("#000000", "#717171"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+
+  labs(y= "Frequency", x = "Year")+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12))+
+  theme(axis.title.x = element_text(size=14), axis.title.y = element_text(size=14))+
+  theme(legend.title = element_text(size=14), legend.text = element_text(size=12))
+```
+
+# Linear Regressions
+
+## Global Dataset
+```{r}
+#Extracting average annual TP for each lake 
+library(plyr)
+avgTP<-ddply(OWCSLAP, c("LakeID", "Sample_Year"), summarize, 
+             Mean = mean(TP, na.rm=TRUE))
+
+#Extracting average annual TN:TP for each lake 
+avgTNTP<-ddply(OWCSLAP, c("LakeID", "Sample_Year"), summarize, 
+             Mean = mean(TN_TP, na.rm=TRUE))
+
+#Taking only rows where there is a value for Microcystin 
+Bloom<-CSLAP[!is.na(CSLAP$ESF_Microcystin),]
+
+#Which rows are missing TP values? 
+noTPbloom<-Bloom[is.na(Bloom$TP),]
+
+#Which rows are missing TN:TP values? 
+noTNTPbloom<-Bloom[is.na(Bloom$TN_TP),]
+
+#merge average TP to noTPbloom data frame 
+avgTPbloom<-merge(noTPbloom, avgTP, by=c("LakeID", "Sample_Year"), all.x=TRUE)
+
+#merge average TN:TP to noTNTPbloom data frame 
+avgTNTPbloom<-merge(noTNTPbloom, avgTNTP, by=c("LakeID", "Sample_Year"), all.x = TRUE)
+
+#remove original TP column, and re-name the average TP column 
+avgTPbloom<-avgTPbloom[, c(1:16,18:56)]
+colnames(avgTPbloom)[colnames(avgTPbloom)=="Mean"] <- "TP"
+
+#remove original TN:TP column, and re-name the average TN:TP column 
+avgTNTPbloom<-avgTNTPbloom[, c(1:49, 51:56)]
+colnames(avgTNTPbloom)[colnames(avgTNTPbloom)=="Mean"] <- "TN_TP"
+
+#re-order columns 
+avgTPbloom<-avgTPbloom[, c(1:16,55,17:54)]
+
+#re-order columns 
+avgTNTPbloom<-avgTNTPbloom[, c(1:49,55,50:54)]
+
+#remove TN_TP from avgTPbloom and merge with avgTNTP bloom 
+avgTPbloom<-avgTPbloom[,c(1:49,51:55)]
+TNTPmerge<-avgTNTPbloom[,c(5,50)]
+avgTPTNTPbloom<-merge(avgTPbloom, TNTPmerge, by="Sample_Name")
+
+#re-order columns
+avgTPTNTPbloom<-avgTPTNTPbloom[,c(1:49,55,50:54)]
+
+#combine two data frames
+hadTP<-Bloom[!is.na(Bloom$TP),]
+
+completeBloom<-rbind(hadTP, avgTPTNTPbloom)
+
+
+#Split by Info_Type
+OWcompleteBloom<-completeBloom[completeBloom$Info_Type == "OW",]
+SBcompleteBloom<-completeBloom[completeBloom$Info_Type == "SB",]
+
+#split by invasion status 
+OWinvadedBlooms<-OWcompleteBloom[OWcompleteBloom$Dreissenids == "Invaded",]
+OWuninvadedBlooms<-OWcompleteBloom[OWcompleteBloom$Dreissenids == "Uninvaded",]
+
+SBinvadedBlooms<-SBcompleteBloom[SBcompleteBloom$Dreissenids == "Invaded",]
+SBuninvadedBlooms<-SBcompleteBloom[SBcompleteBloom$Dreissenids == "Uninvaded",]
+```
+
+### TP and Microcystin
+
+#### Open Water
+```{r}
+#create linear models 
+OWinvaded.lm<-lm(log(OWinvadedBlooms$ESF_Microcystin+.1)~log(OWinvadedBlooms$TP+.1))
+OWuninvaded.lm<-lm(log(OWuninvadedBlooms$ESF_Microcystin+.1)~log(OWuninvadedBlooms$TP+.1))
+
+summary(OWinvaded.lm)
+summary(OWuninvaded.lm)
+
+OWinvaded.lm.sum<-summary(OWinvaded.lm)
+OWuninvaded.lm.sum<-summary(OWuninvaded.lm)
+
+#extract R2 and p-value 
+r2<-OWinvaded.lm.sum$adj.r.squared
+my.p<-OWinvaded.lm.sum$coefficients[2,4]
+
+rp<-vector("expression", 2)
+rp[1] <- substitute(expression(italic(R)^2 == MYVALUE), 
+        list(MYVALUE = format(r2,dig=3)))[2]
+rp[2] = substitute(expression(italic(p) == MYOTHERVALUE), 
+        list(MYOTHERVALUE = format(my.p, digits = 2)))[2]
+```
+
+```{r}
+ggplot(OWcompleteBloom, aes(x=TP, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
+  geom_point(cex=2) + 
+  geom_smooth(data=subset(OWcompleteBloom, Dreissenids == "Invaded"),
+              aes(x=TP, y=ESF_Microcystin, color=Dreissenids), method="lm", se=FALSE)+
+  theme_classic()+ 
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10', breaks=c(1, 10, 100, 10000)) +
+  scale_color_grey()+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=14), 
+        axis.title.x = element_text(size=14), legend.position = "top", legend.title = element_blank(), legend.text = element_text(size=12))+
+  ylab("log open water microcystin (\u03bcg/L)")+
+  xlab("log TP (mg/L)")+
+  annotate(geom="text", x=.0075, y=10, label= "log microcystin = 8.6 + 4.24( log TP)")+
+  annotate(geom="text", x=.005, y=7, label=rp[1], parse=TRUE)+
+  annotate(geom="text", x=.005, y=5, label=rp[2], parse=TRUE)
+  
+```
+
+#### Shoreline Bloom
+```{r}
+#create linear models 
+SBinvaded.lm<-lm(log(SBinvadedBlooms$ESF_Microcystin+.1)~log(SBinvadedBlooms$TP+.1))
+SBuninvaded.lm<-lm(log(SBuninvadedBlooms$ESF_Microcystin+.1)~log(SBuninvadedBlooms$TP+.1))
+
+summary(SBinvaded.lm)
+summary(SBuninvaded.lm)
+
+SBinvaded.lm.sum<-summary(SBinvaded.lm)
+SBuninvaded.lm.sum<-summary(SBuninvaded.lm)
+```
+
+```{r}
+ggplot(SBcompleteBloom, aes(x=TP, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
+  geom_point(cex=2) + 
+  theme_classic()+ 
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10', breaks=c(1,100, 10000)) +
+  scale_color_grey()+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=14), 
+        axis.title.x = element_text(size=14), legend.position = "top", legend.title = element_blank(), legend.text = element_text(size=12))+
+  ylab("log shoreline bloom microcystin (\u03bcg/L)")+
+  xlab("log TP (mg/L)")
+  
+
+```
+
+### TN:TP and Microcystin
+
+#### Open Water
+```{r}
+#create linear models 
+OWTNTP_invaded.lm<-lm(log(OWinvadedBlooms$ESF_Microcystin+.1)~log(OWinvadedBlooms$TN_TP+.1))
+OWTNTP_uninvaded.lm<-lm(log(OWuninvadedBlooms$ESF_Microcystin+.1)~log(OWuninvadedBlooms$TN_TP+.1))
+
+summary(OWTNTP_invaded.lm)
+summary(OWTNTP_uninvaded.lm)
+
+OWTNTP_invaded.lm.sum<-summary(OWTNTP_invaded.lm)
+OWTNTP_uninvaded.lm.sum<-summary(OWTNTP_uninvaded.lm)
+```
+
+```{r}
+ggplot(OWcompleteBloom, aes(x=TN_TP, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
+  geom_point(cex=2) +
+  theme_classic()+ 
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10', breaks=c(1, 10,100, 10000)) +
+  scale_color_grey()+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=14), 
+        axis.title.x = element_text(size=14), legend.position = "top", legend.title = element_blank(), legend.text=element_text(size=12))+
+  ylab("log open water microcystin (\u03bcg/L)")+
+  xlab("log TN:TP")
+  
+```
+
+#### Shoreline Bloom
+```{r}
+#create linear models 
+SBTNTP_invaded.lm<-lm(log(SBinvadedBlooms$ESF_Microcystin+.1)~log(SBinvadedBlooms$TN_TP+.1))
+SBTNTP_uninvaded.lm<-lm(log(SBuninvadedBlooms$ESF_Microcystin+.1)~log(SBuninvadedBlooms$TN_TP+.1))
+
+summary(SBTNTP_invaded.lm)
+summary(SBTNTP_uninvaded.lm)
+
+SBTNTP_invaded.lm.sum<-summary(SBTNTP_invaded.lm)
+SBTNTP_uninvaded.lm.sum<-summary(SBTNTP_uninvaded.lm)
+```
+
+```{r}
+ggplot(SBcompleteBloom, aes(x=TN_TP, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
+  geom_point(cex=2) +
+  theme_classic()+ 
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10', breaks=c(1,100, 10000)) +
+  scale_color_grey()+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=14), 
+        axis.title.x = element_text(size=14), legend.position = "top", legend.title = element_blank(), legend.text=element_text(size=12))+
+  ylab("log shoreline bloom microcystin (\u03bcg/L)")+
+  xlab("log TN:TP")
+
+```
+
+### Chlorophyll-a and Microcystin 
+
+#### Open Water
+```{r}
+#create linear models
+OWchl.invaded.lm<-lm(log(OWinvadedBlooms$ESF_Microcystin+.1)~log(OWinvadedBlooms$Extracted_Chl.a+.1))
+OWchl.uninvaded.lm<-lm(log(OWuninvadedBlooms$ESF_Microcystin+.1)~log(OWuninvadedBlooms$Extracted_Chl.a+.1))
+
+summary(OWchl.invaded.lm)
+summary(OWchl.uninvaded.lm)
+
+OWchl.invaded.lm.sum<-summary(OWchl.invaded.lm)
+OWchl.uninvaded.lm.sum<-summary(OWchl.uninvaded.lm)
+```
+
+```{r}
+ggplot(OWcompleteBloom, aes(x=Extracted_Chl.a, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
+  geom_point(cex=2) + 
+  theme_classic()+ 
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10') + 
+  scale_color_grey()+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=14), 
+        axis.title.x = element_text(size=14), legend.position = "top", legend.title = element_blank(), legend.text=element_text(size=12))+
+  ylab("log open water microcystin (\u03bcg/L)")+
+  xlab("log extracted chlorophyll-a (\u03bcg/L)")
+  
+```
+
+#### Shoreline Bloom
+```{r}
+#create linear models
+SBchl.invaded.lm<-lm(log(SBinvadedBlooms$ESF_Microcystin+.1)~log(SBinvadedBlooms$ESF_FP_Chl.a+.1))
+SBchl.uninvaded.lm<-lm(log(SBuninvadedBlooms$ESF_Microcystin+.1)~log(SBuninvadedBlooms$ESF_FP_Chl.a+.1))
+
+summary(SBchl.invaded.lm)
+summary(SBchl.uninvaded.lm)
+
+SBchl.invaded.lm.sum<-summary(SBchl.invaded.lm)
+SBchl.uninvaded.lm.sum<-summary(SBchl.uninvaded.lm)
+```
+
+```{r}
+ggplot(SBcompleteBloom, aes(x=ESF_FP_Chl.a, y=ESF_Microcystin, color=Dreissenids, shape=Dreissenids)) +
+  geom_point(cex=2) +
+  theme_classic()+ 
+  scale_x_continuous(trans='log10', breaks=c(10,100,1000,10000)) +
+  scale_y_continuous(trans='log10') + 
+  scale_color_grey()+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12), axis.title.y = element_text(size=14), 
+        axis.title.x = element_text(size=14), legend.position = "top", legend.title = element_blank(), legend.text=element_text(size=12))+
+  ylab("log shoreline bloom microcystin (\u03bcg/L)")+
+  xlab("log fluoroprobe chlorophyll-a (\u03bcg/L)")
+  
+```
+
