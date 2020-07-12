@@ -1161,12 +1161,14 @@ HABFreqYear<-as.data.frame(table(CSLAP[,c("Bloom","Dreissenids","Sample_Year")])
 
 HABFreqLake<-as.data.frame(table(CSLAP[,c("Bloom","Dreissenids","Lake_Name")]))
 
-#separate by invaded and uninvaded
-I.blooms<-as.data.frame(table(I.CSLAP[,c("Lake_Name","Bloom")]))
-I.blooms$Dreissenids<-rep("Invaded", 16)
+HABFreq<-as.data.frame(table(CSLAP[,c("Bloom","Dreissenids","Sample_Year", "Lake_Name")]))
 
-U.blooms<-as.data.frame(table(U.CSLAP[,c("Lake_Name","Bloom")]))
-U.blooms$Dreissenids<-rep("Uninvaded", 124)
+#separate by invaded and uninvaded
+I.blooms<-as.data.frame(table(I.CSLAP[,c("Lake_Name","Sample_Year", "Bloom")]))
+I.blooms$Dreissenids<-rep("Invaded", 96)
+
+U.blooms<-as.data.frame(table(U.CSLAP[,c("Lake_Name","Sample_Year", "Bloom")]))
+U.blooms$Dreissenids<-rep("Uninvaded", 744)
 
 #Make into one dataframe for analysis
 blooms<-rbind(I.blooms, U.blooms)
@@ -1187,7 +1189,7 @@ TukeyHSD(fit)
 ```{r}
 hist(blooms$Freq)
 
-model<-glmer(Freq ~ Dreissenids + (1|Lake_Name), family=poisson(link=log), data=blooms)
+model<-glmer(Freq ~ Dreissenids + (1|Lake_Name) + (1|Sample_Year:Lake_Name), family=poisson(link=log), data=blooms)
 summary(model)
 ```
 
@@ -1208,11 +1210,11 @@ redHABFreqYear<-as.data.frame(table(redCSLAP[,c("Bloom","Dreissenids","Sample_Ye
 ##Data organization for analysis 
 
 #separate by invaded and uninvaded
-I.redblooms<-as.data.frame(table(I.redCSLAP[,c("Lake_Name","Bloom")]))
-I.redblooms$Dreissenids<-rep("Invaded", 16)
+I.redblooms<-as.data.frame(table(I.redCSLAP[,c("Lake_Name","Sample_Year","Bloom")]))
+I.redblooms$Dreissenids<-rep("Invaded", 96)
 
-U.redblooms<-as.data.frame(table(U.redCSLAP[,c("Lake_Name","Bloom")]))
-U.redblooms$Dreissenids<-rep("Uninvaded", 20)
+U.redblooms<-as.data.frame(table(U.redCSLAP[,c("Lake_Name","Sample_Year","Bloom")]))
+U.redblooms$Dreissenids<-rep("Uninvaded", 120)
 
 #Make into one dataframe for analysis
 redblooms<-rbind(I.redblooms, U.redblooms)
@@ -1233,7 +1235,7 @@ TukeyHSD(redfit)
 ```{r}
 hist(redblooms$Freq)
 
-redmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name), family=poisson(link=log), data=redblooms)
+redmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name) + (1|Sample_Year:Lake_Name), family=poisson(link=log), data=redblooms)
 summary(redmodel)
 ```
 
@@ -1259,21 +1261,24 @@ OWHTBloom$HTBloom <- ifelse(OWHTBloom$ESF_Microcystin >= 10.0, "HT Bloom", "No H
 SBHTBloom<-HTBloom[HTBloom$Info_Type == "SB",]
 SBHTBloom$HTBloom <- ifelse(SBHTBloom$ESF_Microcystin >= 20.0, "HT Bloom", "No HT Bloom")
 
-#Separate based on invasion status and drop unused levels of Lake Name
-I.SBHTBloom<-SBHTBloom[SBHTBloom$Dreissenids == "Invaded",]
-I.SBHTBloom$Lake_Name<-droplevels(I.SBHTBloom$Lake_Name)
+#combine OW and SB dfs 
+allHTBloom<-rbind(OWHTBloom, SBHTBloom)
 
-U.SBHTBloom<-SBHTBloom[SBHTBloom$Dreissenids == "Uninvaded",]
-U.SBHTBloom$Lake_Name<-droplevels(U.SBHTBloom$Lake_Name)
+#Separate based on invasion status and drop unused levels of Lake Name
+I.HTBloom<-allHTBloom[allHTBloom$Dreissenids == "Invaded",]
+I.HTBloom$Lake_Name<-droplevels(I.HTBloom$Lake_Name)
+
+U.HTBloom<-allHTBloom[allHTBloom$Dreissenids == "Uninvaded",]
+U.HTBloom$Lake_Name<-droplevels(U.HTBloom$Lake_Name)
 ```
 
 ```{r}
 #separate by invaded and uninvaded
-I.HTblooms<-as.data.frame(table(I.SBHTBloom[,c("Lake_Name","HTBloom")]))
-I.HTblooms$Dreissenids<-rep("Invaded", 8)
+I.HTblooms<-as.data.frame(table(I.HTBloom[,c("Lake_Name","Sample_Year","HTBloom")]))
+I.HTblooms$Dreissenids<-rep("Invaded", 40)
 
-U.HTblooms<-as.data.frame(table(U.SBHTBloom[,c("Lake_Name","HTBloom")]))
-U.HTblooms$Dreissenids<-rep("Uninvaded", 56)
+U.HTblooms<-as.data.frame(table(U.HTBloom[,c("Lake_Name","Sample_Year","HTBloom")]))
+U.HTblooms$Dreissenids<-rep("Uninvaded", 348)
 
 #Make into one dataframe for analysis
 HTblooms<-rbind(I.HTblooms, U.HTblooms)
@@ -1294,7 +1299,7 @@ TukeyHSD(HTfit)
 ```{r}
 hist(HTblooms$Freq)
 
-HTmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name), family=poisson(link=log), data=HTblooms)
+HTmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name) + (1|Sample_Year:Lake_Name), family=poisson(link=log), data=HTblooms)
 summary(HTmodel)
 ```
 
@@ -1320,21 +1325,24 @@ redOWHTBloom$HTBloom <- ifelse(redOWHTBloom$ESF_Microcystin >= 10.0, "HT Bloom",
 redSBHTBloom<-redHTBloom[redHTBloom$Info_Type == "SB",]
 redSBHTBloom$HTBloom <- ifelse(redSBHTBloom$ESF_Microcystin >= 20.0, "HT Bloom", "No HT Bloom")
 
-#Separate based on invasion status and drop unused levels of Lake Name
-redI.SBHTBloom<-redSBHTBloom[redSBHTBloom$Dreissenids == "Invaded",]
-redI.SBHTBloom$Lake_Name<-droplevels(redI.SBHTBloom$Lake_Name)
+#combine OW and SB dfs
+redallHTBloom<-rbind(redOWHTBloom, redSBHTBloom)
 
-redU.SBHTBloom<-redSBHTBloom[redSBHTBloom$Dreissenids == "Uninvaded",]
-redU.SBHTBloom$Lake_Name<-droplevels(redU.SBHTBloom$Lake_Name)
+#Separate based on invasion status and drop unused levels of Lake Name
+redI.HTBloom<-redallHTBloom[redallHTBloom$Dreissenids == "Invaded",]
+redI.HTBloom$Lake_Name<-droplevels(redI.HTBloom$Lake_Name)
+
+redU.HTBloom<-redallHTBloom[redallHTBloom$Dreissenids == "Uninvaded",]
+redU.HTBloom$Lake_Name<-droplevels(redU.HTBloom$Lake_Name)
 ```
 
 ```{r}
 #separate by invaded and uninvaded
-redI.HTblooms<-as.data.frame(table(redI.SBHTBloom[,c("Lake_Name","HTBloom")]))
-redI.HTblooms$Dreissenids<-rep("Invaded", 8)
+redI.HTblooms<-as.data.frame(table(redI.SBHTBloom[,c("Lake_Name","Sample_Year", "HTBloom")]))
+redI.HTblooms$Dreissenids<-rep("Invaded", 40)
 
-redU.HTblooms<-as.data.frame(table(redU.SBHTBloom[,c("Lake_Name","HTBloom")]))
-redU.HTblooms$Dreissenids<-rep("Uninvaded", 6)
+redU.HTblooms<-as.data.frame(table(redU.SBHTBloom[,c("Lake_Name","Sample_Year", "HTBloom")]))
+redU.HTblooms$Dreissenids<-rep("Uninvaded", 30)
 
 #Make into one dataframe for analysis
 redHTblooms<-rbind(redI.HTblooms, redU.HTblooms)
@@ -1355,7 +1363,7 @@ TukeyHSD(redHTfit)
 ```{r}
 hist(redHTblooms$Freq)
 
-redHTmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name), family=poisson(link=log), data=redHTblooms)
+redHTmodel<-glmer(Freq ~ Dreissenids + (1|Lake_Name) + (1|Sample_Year:Lake_Name), family=poisson(link=log), data=redHTblooms)
 summary(redHTmodel)
 ```
 
