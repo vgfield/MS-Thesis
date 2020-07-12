@@ -1010,7 +1010,7 @@ qqPlot(resid(OWmicro))
 
 ### Open water TN:TP
 ```{r}
-redTNTP<-lmer(log(TN_TP+.01) ~ Dreissenids +  (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=redOWCSLAP)
+redTNTP<-lmer(log(TN_TP+.01) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=redOWCSLAP)
 
 summary(redTNTP)
 
@@ -1021,7 +1021,7 @@ qqPlot(resid(redTNTP))
 
 ### Bottom Sample TP
 ```{r}
-redBSTP<-lmer(log(TP+.01) ~ Dreissenids  +  (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=redBSCSLAP)
+redBSTP<-lmer(log(TP+.01) ~ Dreissenids  +  log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|Sample_Year) + (1|Sample_Month) + (1|LakeID) + (1|Sample_Year:LakeID), data=redBSCSLAP)
 
 summary(redBSTP)
 
@@ -1033,7 +1033,7 @@ qqPlot(resid(redBSTP))
 ### Open Water Chlorophyll-a
 
 ```{r}
-redChl<-lmer(log(Extracted_Chl.a+1) ~ Dreissenids + (1|LakeID) + (1|Sample_Year) + (1|Sample_Month) + (1|Sample_Year:LakeID), data=redOWCSLAP)
+redChl<-lmer(log(Extracted_Chl.a+1) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|LakeID) + (1|Sample_Year) + (1|Sample_Month) + (1|Sample_Year:LakeID), data=redOWCSLAP)
 
 summary(redChl)
 
@@ -1046,7 +1046,7 @@ qqPlot(resid(redChl))
 
 -`Sample_Year` and `Sample_Month` removed for having low variance
 ```{r}
-redSecchi <- lmer(log(Secchi_Depth) ~ Dreissenids  + (1|LakeID)+ (1|Sample_Year) + (1|Sample_Month) + (1|Sample_Year:LakeID), data=redOWCSLAP)
+redSecchi <- lmer(log(Secchi_Depth) ~ Dreissenids  + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|LakeID)+ (1|Sample_Year) + (1|Sample_Month) + (1|Sample_Year:LakeID), data=redOWCSLAP)
 
 summary(redSecchi)
 
@@ -1061,7 +1061,7 @@ Full model error: `Model failed to converge`
 
 Remove `Sample_Year` and `Sample_Month` (low variance) to resolve
 ```{r}
-redOWTC<-lmer(True_Color ~ Dreissenids  + (1|LakeID) + + (1|Sample_Year:LakeID), data=redOWCSLAP)
+redOWTC<-lmer(True_Color ~ Dreissenids  + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|LakeID) + + (1|Sample_Year:LakeID), data=redOWCSLAP)
 
 summary(redOWTC)
 
@@ -1075,7 +1075,7 @@ qqPlot(resid(redOWTC))
 -`Sample_Year` removed for low variance
 
 ```{r}
-redSBChl<-lmer(log(ESF_FP_Chl.a) ~ Dreissenids + (1|Sample_Month) + (1|LakeID) , data=redSBCSLAP)
+redSBChl<-lmer(log(ESF_FP_Chl.a) ~ Dreissenids + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|Sample_Month) + (1|LakeID) , data=redSBCSLAP)
 
 summary(redSBChl)
 
@@ -1103,7 +1103,7 @@ Full model error: `failed to converge`
 
 Remove `Sample_Month`, `LakeID`,  and `Sample_Year:LakeID` to resolve
 ```{r}
-redSBmicro<-lmer(log(ESF_Microcystin) ~ Dreissenids + log(TN_TP)  + (1|Sample_Year)  , data=redSBCSLAP)
+redSBmicro<-lmer(log(ESF_Microcystin) ~ Dreissenids + log(TN_TP) + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag + (1|Sample_Year)  , data=redSBCSLAP)
 
 summary(redSBmicro)
 
@@ -1115,7 +1115,7 @@ qqPlot(resid(redSBmicro))
 ### Open Water Microcystin 
 
 ```{r}
-redOWmicro<-lmer(log(ESF_Microcystin) ~ Dreissenids + TN_TP + log(CA.SA) + Mean_Depth_m + Percent_Ag  + (1|Sample_Year:LakeID), data=redOWCSLAP)
+redOWmicro<-lmer(log(ESF_Microcystin) ~ Dreissenids +  TN_TP + log(CA.SA) + log(Mean_Depth_m) + Percent_Ag  + (1|Sample_Year:LakeID), data=redOWCSLAP)
 
 summary(redOWmicro)
 
