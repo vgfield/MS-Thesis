@@ -30,6 +30,7 @@ library(lattice)
 library(predictmeans)
 library(ggpubr)
 library(ggpmisc)
+library(sjPlot)
 ```
 
 # Data Cleaning
@@ -1191,6 +1192,7 @@ hist(blooms$Freq)
 
 model<-glmer(Freq ~ Dreissenids + (1|Lake_Name) + (1|Sample_Year:Lake_Name), family=poisson(link=log), data=blooms)
 summary(model)
+
 ```
 
 ```{r}
@@ -1374,6 +1376,54 @@ plot(redHTres)
 testResiduals(redHTres)
 
 testZeroInflation(redHTres)
+```
+
+## HABS Frequency Plots 
+
+```{r}
+#change column name of HTblooms so that we can combine HTblooms with blooms
+colnames(HTblooms)[3] <- "Bloom"
+
+#combine dfs
+allblooms<-rbind(HTblooms, blooms)
+
+#remove columns where 0 is reported? 
+allposblooms<-allblooms[allblooms$Freq > 0, ]
+```
+
+```{r}
+ggplot(subset(allposblooms, Bloom == "Bloom"), aes(x=Sample_Year, y=Freq, fill=Dreissenids, color=Dreissenids))+
+  geom_boxplot()+
+  theme_minimal()+
+  scale_y_continuous(breaks= c(0,2, 4, 6, 8, 10))+
+  scale_fill_manual(values=c("#E7E7E7", "#FFFFFF"))+
+  scale_color_manual(values=c("#000000", "#717171"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+
+  labs(y= "Frequency", x = "Year")+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12))+
+  theme(axis.title.x = element_text(size=14), axis.title.y = element_text(size=14))+
+  theme(legend.title = element_text(size=14), legend.text = element_text(size=12))
+
+ggsave("./output_figures/Bloom Freq Boxplot.png")
+```
+
+```{r}
+library(RColorBrewer)
+ggplot(subset(allposblooms, Bloom == "HT Bloom"), aes(x=Sample_Year, y=Freq, color=Dreissenids, fill=Dreissenids))+
+  geom_boxplot()+
+  theme_minimal()+
+  scale_y_continuous(breaks= c(0,2, 4, 6, 8, 10))+
+  scale_fill_manual(values=c("#E7E7E7", "#FFFFFF"))+
+  scale_color_manual(values=c("#000000", "#717171"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        panel.background = element_blank(), axis.line = element_line(colour = "black"))+
+  labs(y= "Frequency", x = "Year")+
+  theme(axis.text.y = element_text(size=12), axis.text.x = element_text(size=12))+
+  theme(axis.title.x = element_text(size=14), axis.title.y = element_text(size=14))+
+  theme(legend.title = element_text(size=14), legend.text = element_text(size=12))
+
+ggsave("./output_figures/HT Bloom Freq Boxplot.png")
 ```
 
 # Linear Regressions
